@@ -22,6 +22,11 @@
 - [ ] Diff between clean and modified ROMs to produce `.ips` and `.mra` patches automagically
 
 
+## Installation
+
+Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the .zip for your OS and architecture. Unzip it into a location of your choosing, but it is recommended that you place it somewhere on your PATH environment variable so you may run it from anywhere.
+
+
 ## Usage
 
 | Flag | Usage                                                                                        | Description                                                                                                                          |

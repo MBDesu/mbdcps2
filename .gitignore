@@ -1,0 +1,5 @@
+.DS_Store
+mbdcps2
+bin/
+.vscode/
+build.sh

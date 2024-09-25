@@ -31,7 +31,7 @@ var flagStrings = map[string]string{
 	"splitModeDesc":   "-s -n <ROM set name> [-b </path/to/file.bin> & ![-d | -e]] [-d | -e] [-o <output filename>]\nSplit mode. Splits a concatenated binary back into its original MAME files. This flag is usable with -d or -e, but not if -b is set.",
 	"binFileDesc":     "-s -n <ROM set name> ![-d | -e] [-o <output filename>]\nSupplied with -s when neither -d nor -e are supplied to specify bin file input for splitting into ROM files",
 	"concatModeDesc":  "-b </path/to/file.bin> -n <ROM set name> [-o <output filename>]\nConcatenates executable regions of ROM into one file",
-	"decryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nDecrypt mode. Decrypts and concatenates the executable regions of ROM into a single file",
+	"decryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-s] [-o <output filename>]\nDecrypt mode. Decrypts and concatenates the executable regions of ROM into a single .bin file, unless the -s flag is set",
 	"encryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nEncrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files",
 	"outputFileDesc":  "-o </path/to/output.file>\nOptional flag for specifying output file for operations that output a file.",
 	"romZipDesc":      "</path/to/ROM.zip> -n <ROM set name>\nRequired when using -d, -e, or -m. Specifies the ROM .zip file to open",

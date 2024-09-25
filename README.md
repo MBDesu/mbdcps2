@@ -10,12 +10,12 @@
 
 - [x] Decryption (MAME -> `.bin`, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
 - [x] Encryption (`.bin` -> MAME, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
-- [x] Splitting (MAME -> `.bin`) ✅ 2024-09-25
+- [x] Splitting (`.bin` -> MAME) ✅ 2024-09-25
 
 
 ### TODO
 
-- [ ] Concatenating (`.bin` -> MAME)
+- [ ] Concatenating (MAME -> `.bin` \[decryption spits out a concatenated `maincpu` region, but that's the only concatenation exposed to the user right now])
 - [ ] MAME <-> Darksoft conversion
 - [ ] `.mra`/`.ips` patching
 - [ ] Unshuffling graphics

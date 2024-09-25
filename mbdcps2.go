@@ -15,7 +15,7 @@ import (
 )
 
 type Flags struct {
-	isConcatMode  bool
+	// isConcatMode  bool
 	isDecryptMode bool
 	isEncryptMode bool
 	isSplitMode   bool
@@ -38,9 +38,9 @@ func parseFlags() {
 	decryptModePtr := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptModePtr := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
 	splitModePtr := flag.Bool("s", false, Resources.Strings.Flag["splitModeDesc"])
-	concatModePtr := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
+	// concatModePtr := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
 	flag.Func("b", Resources.Strings.Flag["binFileDesc"], func(binFilepath string) error {
-		if !(*splitModePtr || *concatModePtr) {
+		if !(*splitModePtr /*|| *concatModePtr*/) {
 			return nil
 		}
 		b, err := os.ReadFile(binFilepath)
@@ -81,7 +81,7 @@ func parseFlags() {
 	})
 
 	flag.Parse()
-	flags = Flags{*concatModePtr, *decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
+	flags = Flags{ /**concatModePtr,*/ *decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
 	if *decryptModePtr && *encryptModePtr {
 		throw(Resources.Strings.Error["bothEncrypts"])
 	}
@@ -140,7 +140,6 @@ func main() {
 		err = file_utils.SplitRegionToFiles(romDef.Maincpu, binFile, flags.outputFile)
 		checkErr(err)
 		Resources.Logger.Done(fmt.Sprintf("%s maincpu files written to %s", romName, flags.outputFile))
-	} else if flags.isConcatMode {
 	}
 	defer romZip.Close()
 	os.Exit(0)

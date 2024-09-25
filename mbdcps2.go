@@ -15,6 +15,7 @@ import (
 )
 
 type Flags struct {
+	isConcatMode  bool
 	isDecryptMode bool
 	isEncryptMode bool
 	isSplitMode   bool
@@ -80,7 +81,7 @@ func parseFlags() {
 	})
 
 	flag.Parse()
-	flags = Flags{*decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
+	flags = Flags{*concatModePtr, *decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
 	if *decryptModePtr && *encryptModePtr {
 		throw(Resources.Strings.Error["bothEncrypts"])
 	}

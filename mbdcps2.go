@@ -6,19 +6,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/MBDesu/mbdcps2/Resources"
 	"github.com/MBDesu/mbdcps2/cps2crypt"
 	"github.com/MBDesu/mbdcps2/cps2rom"
+	file_utils "github.com/MBDesu/mbdcps2/utils"
 )
 
 type Flags struct {
 	isDecryptMode bool
 	isEncryptMode bool
+	isSplitMode   bool
 	outputFile    string
 }
 
+var binFile []byte
 var flags Flags
 var romDef cps2rom.RomDefinition
 var romZip *zip.ReadCloser
@@ -33,6 +36,20 @@ func throw(errorString string) {
 func parseFlags() {
 	decryptModePtr := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptModePtr := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
+	splitModePtr := flag.Bool("s", false, Resources.Strings.Flag["splitModeDesc"])
+	concatModePtr := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
+	flag.Func("b", Resources.Strings.Flag["binFileDesc"], func(binFilepath string) error {
+		if !(*splitModePtr || *concatModePtr) {
+			return nil
+		}
+		b, err := os.ReadFile(binFilepath)
+		if err != nil {
+			return err
+		}
+		binFile = b
+		hasRomFile = true
+		return err
+	})
 	flag.Func("n", Resources.Strings.Flag["romSetNameDesc"], func(romname string) error {
 		if romname == "" {
 			return fmt.Errorf("%s %s", Resources.LogText.Red(Resources.LogText.Bold("[!]")), "ROM set name is required")
@@ -46,7 +63,7 @@ func parseFlags() {
 		romDef = tmpRom
 		return nil
 	})
-	outputFilePtr := flag.String("o", "out.bin", Resources.Strings.Flag["outputFileDesc"])
+	outputFilePtr := flag.String("o", "out", Resources.Strings.Flag["outputFileDesc"])
 	flag.Func("r", Resources.Strings.Flag["romZipDesc"], func(zipname string) error {
 		r, err := zip.OpenReader(zipname)
 		if err != nil {
@@ -63,9 +80,9 @@ func parseFlags() {
 	})
 
 	flag.Parse()
-	flags = Flags{*decryptModePtr, *encryptModePtr, *outputFilePtr}
+	flags = Flags{*decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
 	if *decryptModePtr && *encryptModePtr {
-		throw(Resources.Strings.Error["bothEncrpts"])
+		throw(Resources.Strings.Error["bothEncrypts"])
 	}
 }
 
@@ -75,28 +92,55 @@ func checkErr(err error) {
 	}
 }
 
+func handleEncryptionOperation(decryptMode cps2crypt.Direction) {
+	hasFileExtension := len(strings.Split(flags.outputFile, ".")) > 1
+	executableRegionBinary, err := cps2rom.ProcessRegion(romZip, romDef.Maincpu)
+	checkErr(err)
+	res, err := cps2crypt.Crypt(decryptMode, romDef, romZip, executableRegionBinary)
+	checkErr(err)
+	if flags.isSplitMode {
+		if !hasFileExtension {
+			flags.outputFile += ".zip"
+		}
+		file_utils.SplitRegionToFiles(romDef.Maincpu, res, flags.outputFile)
+	} else {
+		if !hasFileExtension {
+			flags.outputFile += ".bin"
+		}
+		file_utils.WriteBytesToFile(flags.outputFile, res)
+	}
+	operation := "Encrypted"
+	if decryptMode {
+		operation = "Decrypted"
+	}
+	object := "binary"
+	if flags.isSplitMode {
+		object = "zip"
+	}
+	Resources.Logger.Done(fmt.Sprintf("%s %s written to %s", operation, object, flags.outputFile))
+}
+
 func main() {
 	parseFlags()
-	if !hasRomFile {
+	if !hasRomFile && (flags.isDecryptMode || flags.isEncryptMode) {
 		flag.Usage()
 		throw(Resources.Strings.Error["noRomFile"])
+	} else if !hasRomFile && flags.isSplitMode {
+		flag.Usage()
+		throw(Resources.Strings.Error["noBinFile"])
 	}
 	err := cps2rom.ValidateRomZip(romDef, romZip)
 	if err != nil {
 		throw(err.Error())
 	}
-	if flags.isDecryptMode {
-		executableRegionBinary, err := cps2rom.ProcessRegion(romZip, romDef.Maincpu)
+	if flags.isDecryptMode || flags.isEncryptMode {
+		handleEncryptionOperation(cps2crypt.Direction(flags.isDecryptMode))
+	} else if flags.isSplitMode {
+		err = file_utils.SplitRegionToFiles(romDef.Maincpu, binFile, flags.outputFile)
 		checkErr(err)
-		dec, err := cps2crypt.Crypt(cps2crypt.Decrypt, romDef, romZip, executableRegionBinary)
-		checkErr(err)
-		_, err = os.Stat(filepath.Dir(flags.outputFile))
-		if os.IsNotExist(err) {
-			throw(err.Error())
-		}
-		err = os.WriteFile(filepath.Base(flags.outputFile), dec, 0644)
-		checkErr(err)
-		Resources.Logger.Done(fmt.Sprintf("Decrypted binary written to %s", flags.outputFile))
+		Resources.Logger.Done(fmt.Sprintf("%s maincpu files written to %s", romName, flags.outputFile))
+	} else if flags.isConcatMode {
 	}
 	defer romZip.Close()
+	os.Exit(0)
 }

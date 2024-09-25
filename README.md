@@ -8,11 +8,13 @@
 
 ### Implemented
 
-- [x] Decryption ✅ 2024-09-25
+- [x] Decryption (MAME -> `.bin`, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
+- [x] Encryption (`.bin` -> MAME, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
+- [x] Splitting (MAME -> `.bin`) ✅ 2024-09-25
 
 ### TODO
 
-- [ ] Encryption (`.bin` -> MAME)
+- [ ] Concatenating (`.bin` -> MAME)
 - [ ] MAME <-> Darksoft conversion
 - [ ] `.mra`/`.ips` patching
 - [ ] Unshuffling graphics
@@ -20,10 +22,19 @@
 
 ## Usage
 
-| Flag | Usage                                                            | Description                                                                                           |
-| :--: | :--------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| `-d` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]` | Decrypt mode. Decrypts and concatenates the executable regions of ROM into a single file              |
-| `-e` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]` | Encrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files |
+### Usage
+### Usage
+
+| Flag | Usage                                                                                        | Description                                                                                                        |
+| :--: | :------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `-d` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]`                             | Decrypt mode. Decrypts and concatenates the executable regions of ROM into a single file.                          |
+| `-e` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]`                             | Encrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files.             |
+| `-s` | `-n <ROM set name> [-b </path/to/file.bin> & ![-d \| -e]] [-d \| -e] [-o <output filename>]` | Split mode. Splits a concatenated binary back into its original MAME files.                                        |
+| `-b` | `-s -n <ROM set name> [-o <output filename>]`                                                | Supplied with `-s` when neither `-d` nor `-e` are supplied to specify bin file input for splitting into ROM files. |
+| `-o` | `</path/to/output.file>`                                                                     | Optional flag for specifying output file for operations that output a file.                                        |
+| `-r` | `</path/to/ROM.zip> -n <ROM set name> [-d \| -e]`                                            | Required when using `-d` or `-e`. Specifies the ROM .zip file to open.                                             |
+| `-n` | `<ROM set name>`                                                                             | Required. Specifies the ROM set (usually the ZIP name) to be worked with.                                          |
+
 
 ## Building
 

@@ -3,3 +3,7 @@ mbdcps2
 bin/
 .vscode/
 build.sh
+*.bin
+*.zip
+vm*.0*
+vm*.1*

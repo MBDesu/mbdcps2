@@ -28,17 +28,21 @@ type Log struct {
 }
 
 var flagStrings = map[string]string{
-	"decryptModeDesc": "-d -r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nDecrypt mode. Decrypts and concatenates the executable regions of ROM into a single file",
-	"encryptModeDesc": "-e -r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nEncrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files",
+	"splitModeDesc":   "-s -n <ROM set name> [-b </path/to/file.bin> & ![-d | -e]] [-d | -e] [-o <output filename>]\nSplit mode. Splits a concatenated binary back into its original MAME files",
+	"binFileDesc":     "-s -n <ROM set name> ![-d | -e] [-o <output filename>]\nSupplied with -s when neither -d nor -e are supplied to specify bin file input for splitting into ROM files",
+	"concatModeDesc":  "-b </path/to/file.bin> -n <ROM set name> [-o <output filename>]\nConcatenates executable regions of ROM into one file",
+	"decryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nDecrypt mode. Decrypts and concatenates the executable regions of ROM into a single file",
+	"encryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nEncrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files",
 	"outputFileDesc":  "-o </path/to/output.file>\nOptional flag for specifying output file for operations that output a file.",
-	"romZipDesc":      "</path/to/ROM.zip> [-n <ROM set name>]\nRequired. Specifies the ROM .zip file to open",
+	"romZipDesc":      "</path/to/ROM.zip> -n <ROM set name>\nRequired when using -d, -e, or -m. Specifies the ROM .zip file to open",
 	"romSetNameDesc":  "<ROM set name>\nRequired. Specifies the ROM set (usually the ZIP name)",
 }
 
 var errorStrings = map[string]string{
-	"noRomFile":    "ROM file is required",
+	"noBinFile":    ".bin file is required for this operation",
+	"noRomFile":    "ROM file is required for this operation",
 	"romParseErr":  "Something went wrong parsing the ROMs",
-	"bothEncrypts": "You may only specify one of -d and -e",
+	"bothEncrypts": "-d and -e are mutually exclusive, in addition to being incompatible with -p and -m",
 }
 
 var blue = color.New(color.FgBlue).SprintFunc()

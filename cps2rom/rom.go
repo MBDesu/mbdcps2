@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/MBDesu/mbdcps2/Resources"
@@ -51,14 +52,15 @@ func ValidateRomZip(romDefinition RomDefinition, zip *zip.ReadCloser) error {
 	return nil
 }
 
-func ProcessRegion(romZip *zip.ReadCloser, region RomRegion) ([]uint8, error) {
+func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, error) {
+	Resources.Logger.Warn("Processing binary...")
 	regionBinary := make([]uint8, region.Size)
 	for i := range len(region.Operations) {
 		operation := region.Operations[i]
 		var bufPtr = operation.Offset
 		var operationFile *zip.File
 		for _, file := range romZip.File {
-			if operation.Filename == file.Name {
+			if operation.Filename == filepath.Base(file.Name) {
 				operationFile = file
 				break
 			}
@@ -66,47 +68,50 @@ func ProcessRegion(romZip *zip.ReadCloser, region RomRegion) ([]uint8, error) {
 		if operation.Type != strings.ToLower("load") {
 			continue
 		}
-		r, err := operationFile.Open()
-		if err != nil {
-			return nil, err
-		}
-		p, err := io.ReadAll(r)
-		if err != nil {
-			return nil, err
-		}
-		defer r.Close()
-		bytesLeft := operation.Length
-		skip := operation.Skip + operation.GroupSize
-		Resources.Logger.Info(fmt.Sprintf("Processing %s, starting at offset +0x%06X; bytes in region: 0x%06X", operationFile.Name, bufPtr, bytesLeft))
+		if operationFile != nil {
+			r, err := operationFile.Open()
+			if err != nil {
+				return nil, err
+			}
+			p, err := io.ReadAll(r)
+			if err != nil {
+				return nil, err
+			}
+			defer r.Close()
+			bytesLeft := operation.Length
+			skip := operation.Skip + operation.GroupSize
+			Resources.Logger.Info(fmt.Sprintf("Processing %s, starting at offset +0x%06X", operation.Filename, bufPtr))
 
-		if (operation.GroupSize == 1 || !operation.Reverse) && operation.Skip == 0 {
-			for j := range bytesLeft {
-				regionBinary[bufPtr] = p[j]
-				bufPtr++
-			}
-		} else if operation.GroupSize == 1 {
-			for j := range bytesLeft {
-				regionBinary[bufPtr] = p[j]
-				bufPtr++
-			}
-		} else if !operation.Reverse {
-			for j := 0; j < operation.Length && bytesLeft > 0; j++ {
-				for k := 0; k < operation.GroupSize && bytesLeft > 0; k++ {
-					regionBinary[k+bufPtr] = p[j+k]
-					bytesLeft--
+			if (operation.GroupSize == 1 || !operation.Reverse) && operation.Skip == 0 {
+				for j := range bytesLeft {
+					regionBinary[bufPtr] = p[j]
+					bufPtr++
 				}
-				bufPtr += skip
-			}
-		} else {
-			bytesWritten := 0
-			for bytesWritten < operation.Length {
-				for j := operation.GroupSize - 1; j >= 0; j-- {
-					regionBinary[bufPtr+j] = p[bytesWritten]
-					bytesWritten++
+			} else if operation.GroupSize == 1 {
+				for j := range bytesLeft {
+					regionBinary[bufPtr] = p[j]
+					bufPtr++
 				}
-				bufPtr += skip
+			} else if !operation.Reverse {
+				for j := 0; j < operation.Length && bytesLeft > 0; j++ {
+					for k := 0; k < operation.GroupSize && bytesLeft > 0; k++ {
+						regionBinary[k+bufPtr] = p[j+k]
+						bytesLeft--
+					}
+					bufPtr += skip
+				}
+			} else {
+				bytesWritten := 0
+				for bytesWritten < operation.Length {
+					for j := operation.GroupSize - 1; j >= 0; j-- {
+						regionBinary[bufPtr+j] = p[bytesWritten]
+						bytesWritten++
+					}
+					bufPtr += skip
+				}
 			}
 		}
 	}
+	Resources.Logger.Done("Done processing binary!")
 	return regionBinary, nil
 }

@@ -3,9 +3,12 @@ package main
 import (
 	"archive/zip"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/MBDesu/mbdcps2/Resources"
@@ -17,13 +20,17 @@ import (
 type Flags struct {
 	// isConcatMode  bool
 	isDecryptMode bool
+	isDiffMode    bool
 	isEncryptMode bool
 	isSplitMode   bool
 	outputFile    string
 }
 
 var binFile []byte
+var diffMode string
 var flags Flags
+var modifiedRomBin *os.File
+var modifiedRomZip *zip.ReadCloser
 var romDef cps2rom.RomDefinition
 var romZip *zip.ReadCloser
 var romName string = ""
@@ -39,6 +46,7 @@ func parseFlags() {
 	encryptModePtr := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
 	splitModePtr := flag.Bool("s", false, Resources.Strings.Flag["splitModeDesc"])
 	// concatModePtr := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
+	var isDiffMode bool = false
 	flag.Func("b", Resources.Strings.Flag["binFileDesc"], func(binFilepath string) error {
 		if !(*splitModePtr /*|| *concatModePtr*/) {
 			return nil
@@ -51,8 +59,31 @@ func parseFlags() {
 		hasRomFile = true
 		return err
 	})
+	flag.Func("x", Resources.Strings.Flag["diffModeDesc"], func(modifiedRomFilepath string) error {
+		pathParts := strings.Split(filepath.Base(modifiedRomFilepath), ".")
+		diffMode = pathParts[len(pathParts)-1]
+		cleanFilepath := filepath.Clean(modifiedRomFilepath)
+		if diffMode == "bin" {
+			f, err := os.Open(cleanFilepath)
+			if err != nil {
+				return err
+			}
+			modifiedRomBin = f
+		} else if diffMode == "zip" {
+			z, err := zip.OpenReader(cleanFilepath)
+			if err != nil {
+				return err
+			}
+			modifiedRomZip = z
+		} else {
+			return errors.New("modified ROM file must be a .bin or .zip")
+		}
+		isDiffMode = true
+		return nil
+	})
 	flag.Func("n", Resources.Strings.Flag["romSetNameDesc"], func(romname string) error {
 		if romname == "" {
+			flag.Usage()
 			return fmt.Errorf("%s %s", Resources.LogText.Red(Resources.LogText.Bold("[!]")), "ROM set name is required")
 		}
 		romName = romname
@@ -64,7 +95,7 @@ func parseFlags() {
 		romDef = tmpRom
 		return nil
 	})
-	outputFilePtr := flag.String("o", "out", Resources.Strings.Flag["outputFileDesc"])
+	outputFilePtr := flag.String("o", "", Resources.Strings.Flag["outputFileDesc"])
 	flag.Func("r", Resources.Strings.Flag["romZipDesc"], func(zipname string) error {
 		r, err := zip.OpenReader(zipname)
 		if err != nil {
@@ -81,7 +112,7 @@ func parseFlags() {
 	})
 
 	flag.Parse()
-	flags = Flags{ /**concatModePtr,*/ *decryptModePtr, *encryptModePtr, *splitModePtr, *outputFilePtr}
+	flags = Flags{ /**concatModePtr,*/ *decryptModePtr, isDiffMode, *encryptModePtr, *splitModePtr, *outputFilePtr}
 	if *decryptModePtr && *encryptModePtr {
 		throw(Resources.Strings.Error["bothEncrypts"])
 	}
@@ -93,21 +124,22 @@ func checkErr(err error) {
 	}
 }
 
+// TODO: refactor flag spaghetti
 func handleEncryptionOperation(decryptMode cps2crypt.Direction) {
-	hasFileExtension := len(strings.Split(flags.outputFile, ".")) > 1
-	executableRegionBinary, err := cps2rom.ProcessRegion(romZip, romDef.Maincpu)
+	if flags.outputFile == "" {
+		if flags.isSplitMode {
+			flags.outputFile = romName + ".zip"
+		} else {
+			flags.outputFile = romName + ".bin"
+		}
+	}
+	executableRegionBinary, err := cps2rom.ProcessRegionFromZip(romZip, romDef.Maincpu)
 	checkErr(err)
 	res, err := cps2crypt.Crypt(decryptMode, romDef, romZip, executableRegionBinary)
 	checkErr(err)
 	if flags.isSplitMode {
-		if !hasFileExtension {
-			flags.outputFile += ".zip"
-		}
 		file_utils.SplitRegionToFiles(romDef.Maincpu, res, flags.outputFile)
 	} else {
-		if !hasFileExtension {
-			flags.outputFile += ".bin"
-		}
 		file_utils.WriteBytesToFile(flags.outputFile, res)
 	}
 	operation := "Encrypted"
@@ -121,25 +153,60 @@ func handleEncryptionOperation(decryptMode cps2crypt.Direction) {
 	Resources.Logger.Done(fmt.Sprintf("%s %s written to %s", operation, object, flags.outputFile))
 }
 
+func handleDiffOperation() {
+	if flags.outputFile == "" {
+		flags.outputFile = romName + ".mra"
+	}
+	var lBytes []uint8
+	var rBytes []uint8
+	// TODO: make it so you can diff more than just maincpu for patchering
+	lBytes, err := cps2rom.ProcessRegionFromZip(romZip, romDef.Maincpu)
+	checkErr(err)
+	if diffMode == "zip" {
+		rBytes, err = cps2rom.ProcessRegionFromZip(modifiedRomZip, romDef.Maincpu)
+		checkErr(err)
+	} else {
+		rBytes, err = io.ReadAll(modifiedRomBin)
+		checkErr(err)
+	}
+	patches, err := cps2rom.DiffTwoBins(romName, lBytes, rBytes, romDef.Maincpu, false)
+	checkErr(err)
+	patchStrings := cps2rom.GenerateMraPatches(patches)
+	patchFile, err := file_utils.CreateFile(flags.outputFile)
+	checkErr(err)
+	for _, patch := range patchStrings {
+		_, err = patchFile.WriteString(patch)
+		checkErr(err)
+	}
+	defer patchFile.Close()
+}
+
 func main() {
 	parseFlags()
-	if !hasRomFile && (flags.isDecryptMode || flags.isEncryptMode) {
+	if romName == "" {
+		flag.Usage()
+		throw(Resources.Strings.Error["noRomName"])
+	}
+	if !hasRomFile && (flags.isDecryptMode || flags.isEncryptMode || flags.isDiffMode) {
 		flag.Usage()
 		throw(Resources.Strings.Error["noRomFile"])
 	} else if !hasRomFile && flags.isSplitMode {
 		flag.Usage()
 		throw(Resources.Strings.Error["noBinFile"])
 	}
-	err := cps2rom.ValidateRomZip(romDef, romZip)
-	if err != nil {
-		throw(err.Error())
-	}
 	if flags.isDecryptMode || flags.isEncryptMode {
+		err := cps2rom.ValidateRomZip(romDef, romZip)
+		if err != nil {
+			throw(err.Error())
+		}
 		handleEncryptionOperation(cps2crypt.Direction(flags.isDecryptMode))
 	} else if flags.isSplitMode {
-		err = file_utils.SplitRegionToFiles(romDef.Maincpu, binFile, flags.outputFile)
+		err := file_utils.SplitRegionToFiles(romDef.Maincpu, binFile, flags.outputFile)
 		checkErr(err)
 		Resources.Logger.Done(fmt.Sprintf("%s maincpu files written to %s", romName, flags.outputFile))
+	} else if flags.isDiffMode {
+		handleDiffOperation()
+		Resources.Logger.Done(fmt.Sprintf("%s .mra patches written to %s", romName, flags.outputFile))
 	}
 	defer romZip.Close()
 	os.Exit(0)

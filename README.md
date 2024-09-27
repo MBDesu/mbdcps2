@@ -29,15 +29,31 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
 
 ## Usage
 
-| Flag | Usage                                                                                        | Description                                                                                                                          |
-| :--: | :------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| `-d` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]`                             | Decrypt mode. Decrypts and concatenates the executable regions of ROM into a single .bin file, unless the `-s` flag is set.                                           |
-| `-e` | `-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]`                             | Encrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files.                               |
-| `-s` | `-n <ROM set name> [-b </path/to/file.bin> & ![-d \| -e]] [-d \| -e] [-o <output filename>]` | Split mode. Splits a concatenated binary back into its original MAME files. This flag is usable with `-d` or `-e`, but not if `-b` is set. |
-| `-b` | `-s -n <ROM set name> ![-d \| -e] [-o <output filename>]`                                    | Supplied with `-s` when neither `-d` nor `-e` are supplied to specify bin file input for splitting into ROM files.                   |
-| `-o` | `</path/to/output.file>`                                                                     | Optional flag for specifying output file for operations that output a file.                                                          |
-| `-r` | `</path/to/ROM.zip> -n <ROM set name> [-d \| -e]`                                            | Required when using `-d` or `-e`. Specifies the ROM .zip file to open.                                                               |
-| `-n` | `<ROM set name>`                                                                             | Required. Specifies the ROM set (usually the ZIP name) to be worked with.                                                            |
+```
+  -b </path/to/ROM.bin> -s -n <ROM set name> ![-d | -e] [-o </path/to/output.zip>]
+      Supplied with -s when neither -d nor -e are supplied to specify bin file input for splitting into ROM files. Default output file is ./<ROM set name>.zip
+    
+  -d -r </path/to/ROM.zip> -n <ROM set name> [-s] [-o <output filename>]
+      Decrypt mode. Decrypts and concatenates the executable regions of ROM into a single .bin file, unless the -s flag is set. Default output file is ./<ROM set name>.bin, unless the -s flag is set, in which case it will be ./<ROM set name>.zip
+    
+  -e -r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]
+      Encrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files
+    
+  -n <ROM set name>
+      Required. Specifies the ROM set (usually the ZIP name)
+    
+  -o </path/to/output/file>
+      Optional flag for specifying output file for operations that output a file
+    
+  -r </path/to/ROM.zip> -n <ROM set name>
+      Required when using -d, -e, or -x. Specifies a ROM .zip file to open
+    
+  -s -n <ROM set name> [-b </path/to/file.bin> & ![-d | -e]] [-d | -e] [-o </path/to/output.zip>]
+      Split mode. Splits a concatenated binary back into its original MAME files. This flag is usable with -d or -e, but not if -b is set
+    
+  -x </path/to/modified/ROM.zip or .bin> -r </path/to/clean/ROM.zip> -n <ROM set name> [-o </path/to/output/file.mra>]
+      Diffs two ROMs and produces .mra <patch> tags for the differences. Default output file is ./<ROM set name>.mra
+```
 
 
 ### Supported ROM Sets

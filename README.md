@@ -12,13 +12,13 @@
 - [x] Encryption (`.bin` -> MAME, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
 - [x] Splitting (`.bin` -> MAME) ✅ 2024-09-25
 - [x] Diff between clean and modified ROMs to produce `.mra` patches automagically ✅ 2024-09-26
+- [x] `.mra` patching ✅ 2024-09-27
 
 
 ### TODO
 
 - [ ] Concatenating (MAME -> `.bin` \[decryption spits out a concatenated `maincpu` region, but that's the only concatenation exposed to the user right now])
 - [ ] MAME <-> Darksoft conversion
-- [ ] `.mra`/`.ips` patching
 - [ ] Unshuffling graphics
 
 
@@ -44,6 +44,10 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
     
   -o </path/to/output/file>
       Optional flag for specifying output file for operations that output a file
+
+  -p value
+      -r </path/to/clean/ROM.zip> -n <ROM set name> [-d] [-o </path/to/output.zip or .bin>]
+      Patch mode. Value supplied is the path to a .mra file. Patches a ROM with a .mra patch set. Default output file is <./<ROM set name>_modified.zip>
     
   -r </path/to/ROM.zip> -n <ROM set name>
       Required when using -d, -e, or -x. Specifies a ROM .zip file to open

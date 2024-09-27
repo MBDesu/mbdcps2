@@ -1,11 +1,17 @@
 package cps2rom
 
 import (
+	"archive/zip"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/MBDesu/mbdcps2/Resources"
+	file_utils "github.com/MBDesu/mbdcps2/utils"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 )
@@ -14,6 +20,71 @@ type RomPatch struct {
 	Filename string
 	Offset   int
 	Data     []uint8
+}
+
+type MraXml struct {
+	XMLName xml.Name `xml:"misterromdescription"`
+	Text    string   `xml:",chardata"`
+	About   struct {
+		Text    string `xml:",chardata"`
+		Author  string `xml:"author,attr"`
+		Webpage string `xml:"webpage,attr"`
+		Source  string `xml:"source,attr"`
+		Twitter string `xml:"twitter,attr"`
+	} `xml:"about"`
+	Name         string `xml:"name"`
+	Setname      string `xml:"setname"`
+	Rbf          string `xml:"rbf"`
+	Mameversion  string `xml:"mameversion"`
+	Year         string `xml:"year"`
+	Manufacturer string `xml:"manufacturer"`
+	Players      string `xml:"players"`
+	Joystick     string `xml:"joystick"`
+	Rotation     string `xml:"rotation"`
+	Region       string `xml:"region"`
+	Platform     string `xml:"platform"`
+	Category     string `xml:"category"`
+	Catver       string `xml:"catver"`
+	Mraauthor    string `xml:"mraauthor"`
+	Rom          []struct {
+		Text    string `xml:",chardata"`
+		Index   string `xml:"index,attr"`
+		Zip     string `xml:"zip,attr"`
+		Type    string `xml:"type,attr"`
+		Md5     string `xml:"md5,attr"`
+		Address string `xml:"address,attr"`
+		Part    []struct {
+			Text   string `xml:",chardata"`
+			Name   string `xml:"name,attr"`
+			Crc    string `xml:"crc,attr"`
+			Length string `xml:"length,attr"`
+		} `xml:"part"`
+		Patch []struct {
+			Data   string `xml:",chardata"`
+			Offset string `xml:"offset,attr"`
+		} `xml:"patch"`
+		Interleave []struct {
+			Text   string `xml:",chardata"`
+			Output string `xml:"output,attr"`
+			Part   []struct {
+				Text string `xml:",chardata"`
+				Name string `xml:"name,attr"`
+				Crc  string `xml:"crc,attr"`
+				Map  string `xml:"map,attr"`
+			} `xml:"part"`
+		} `xml:"interleave"`
+	} `xml:"rom"`
+	Nvram struct {
+		Text  string `xml:",chardata"`
+		Index string `xml:"index,attr"`
+		Size  string `xml:"size,attr"`
+	} `xml:"nvram"`
+	Buttons struct {
+		Text    string `xml:",chardata"`
+		Names   string `xml:"names,attr"`
+		Default string `xml:"default,attr"`
+		Count   string `xml:"count,attr"`
+	} `xml:"buttons"`
 }
 
 func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
@@ -26,6 +97,85 @@ func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
 	}
 
 	return newArr
+}
+
+func parseMra(mraFile *os.File) (*MraXml, error) {
+	mraBytes, err := io.ReadAll(mraFile)
+	if err != nil {
+		return nil, err
+	}
+	var mraXml MraXml
+	err = xml.Unmarshal(mraBytes, &mraXml)
+	if err != nil {
+		return nil, err
+	}
+	defer mraFile.Close()
+	return &mraXml, err
+}
+
+func mapOffsetToFile(offset int64, romRegion RomRegion) (string, int) {
+	for _, operation := range romRegion.Operations {
+		actualOffset := offset - 0x40
+		if actualOffset >= int64(operation.Offset) && offset < int64(operation.Offset+operation.Length) {
+			return operation.Filename, int(actualOffset - int64(operation.Offset))
+		}
+	}
+	return "", -1
+}
+
+func PatchRomRegionWithMra(romZip *zip.ReadCloser, mraFile *os.File, romRegion RomRegion, outputFilepath string) error {
+	Resources.Logger.Warn("Patching ROM...")
+	fileContentMap, err := file_utils.UnzipFilesToFilenameContentMap(romZip)
+	if err != nil {
+		return err
+	}
+	mra, err := parseMra(mraFile)
+	if err != nil {
+		return err
+	}
+	for _, rom := range mra.Rom {
+		lastOperationFilename := ""
+		for _, patch := range rom.Patch {
+			offset, err := strconv.ParseInt(patch.Offset, 0, 32)
+			if err != nil {
+				return err
+			}
+			data := make([]uint8, 0, len(patch.Data)*3)
+
+			for _, byteString := range strings.Split(patch.Data, " ") {
+				byte16, err := strconv.ParseInt(byteString, 16, 16)
+				if err != nil {
+					return err
+				}
+				byte8 := uint8(byte16 & 0xff)
+				data = append(data, byte8)
+			}
+			operationFilename, absoluteOffset := mapOffsetToFile(offset, romRegion)
+			if operationFilename != lastOperationFilename {
+				Resources.Logger.Info(fmt.Sprintf("Patching %s", operationFilename))
+				lastOperationFilename = operationFilename
+			}
+			for i, dataByte := range data {
+				fileContentMap[operationFilename][absoluteOffset+i] = dataByte
+			}
+		}
+	}
+	Resources.Logger.Done("Done patching ROM!")
+	Resources.Logger.Warn("Writing files to .zip...")
+	f, err := file_utils.CreateFile(outputFilepath)
+	if err != nil {
+		return err
+	}
+	w := *zip.NewWriter(f)
+	for file, content := range fileContentMap {
+		x, err := w.Create(file)
+		if err != nil {
+			return err
+		}
+		x.Write(content)
+	}
+	w.Close()
+	return err
 }
 
 func createUint16ArrayFromUint8Array(arr []uint8) []uint16 {

@@ -35,6 +35,7 @@ var flagStrings = map[string]string{
 	"decryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-s] [-o <output filename>]\nDecrypt mode. Decrypts and concatenates the executable regions of ROM into a single .bin file, unless the -s flag is set. Default output file is ./<ROM set name>.bin, unless the -s flag is set, in which case it will be ./<ROM set name>.zip\n",
 	"encryptModeDesc": "-r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]\nEncrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files\n",
 	"outputFileDesc":  "Optional flag for specifying output file for operations that output a file\n",
+	"patchModeDesc":   "-r </path/to/clean/ROM.zip> -n <ROM set name> [-d] [-o </path/to/output.zip or .bin>]\nPatch mode. Value supplied is the path to a .mra file. Patches a ROM with a .mra patch set. Default output file is <./<ROM set name>_modified.zip>\n",
 	"romZipDesc":      "-n <ROM set name>\nRequired when using -d, -e, or -x. Specifies a ROM .zip file to open\n",
 	"romSetNameDesc":  "Required. Specifies the ROM set (usually the ZIP name)\n",
 	"splitModeDesc":   "-n <ROM set name> [-b </path/to/file.bin> & ![-d | -e]] [-d | -e] [-o </path/to/output.zip>]\nSplit mode. Splits a concatenated binary back into its original MAME files. This flag is usable with -d or -e, but not if -b is set\n",
@@ -43,6 +44,7 @@ var flagStrings = map[string]string{
 var errorStrings = map[string]string{
 	"diffSize":     "binaries differ in size",
 	"noBinFile":    ".bin file is required for this operation",
+	"noMraFile":    ".mra file is required for this operation",
 	"noRomFile":    "ROM file is required for this operation",
 	"noRomName":    "ROM set name is required",
 	"romParseErr":  "Something went wrong parsing the ROMs",

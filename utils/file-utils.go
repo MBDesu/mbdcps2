@@ -2,12 +2,9 @@ package file_utils
 
 import (
 	"archive/zip"
-	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/MBDesu/mbdcps2/Resources"
-	"github.com/MBDesu/mbdcps2/cps2rom"
 )
 
 func CreateFile(file_path string) (*os.File, error) {
@@ -37,28 +34,19 @@ func WriteBytesToFile(file_path string, bytes []byte) error {
 	return err
 }
 
-func SplitRegionToFiles(romRegion cps2rom.RomRegion, binary []byte, zipPath string) error {
-	f, err := CreateFile(zipPath)
-	if err != nil {
-		return err
-	}
-	w := zip.NewWriter(f)
-	for _, operation := range romRegion.Operations {
-		Resources.Logger.Info(fmt.Sprintf("Writing %s from 0x%06x to 0x%06x...", operation.Filename, operation.Offset, operation.Offset+operation.Length))
-		regionBytes := binary[operation.Offset : operation.Offset+operation.Length]
-		fr, err := w.Create(operation.Filename)
+func UnzipFilesToFilenameContentMap(zipFile *zip.ReadCloser) (map[string][]byte, error) {
+	var bytes = make(map[string][]byte, len(zipFile.File))
+	for _, file := range zipFile.File {
+		r, err := file.Open()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		_, err = fr.Write(regionBytes)
+		fileContents, err := io.ReadAll(r)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		bytes[file.Name] = fileContents
+		defer r.Close()
 	}
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-	err = f.Close()
-	return err
+	return bytes, nil
 }

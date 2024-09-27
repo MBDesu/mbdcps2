@@ -206,8 +206,13 @@ func handlePatchOperation() {
 	err = cps2rom.PatchRomRegionWithMra(romZip, mraFile, romDef.Maincpu, flags.outputFile)
 	check(err)
 	if flags.isDecryptMode {
-		// TODO: change to patched ROM when patch done
-		handleEncryptionOperation(romZip, cps2crypt.Direction(flags.isEncryptMode))
+		if err != nil {
+			check(err)
+		}
+		z, err := zip.OpenReader(flags.outputFile)
+		check(err)
+		handleEncryptionOperation(z, cps2crypt.Direction(flags.isEncryptMode))
+		defer z.Close()
 	}
 }
 
@@ -224,7 +229,11 @@ func main() {
 		flag.Usage()
 		throw(Resources.Strings.Error["noBinFile"])
 	}
-	if flags.isDecryptMode || flags.isEncryptMode {
+	if flags.isPatchMode {
+		handlePatchOperation()
+		Resources.Logger.Done(fmt.Sprintf("patched %s written to %s", romName, flags.outputFile))
+	}
+	if flags.isDecryptMode || flags.isEncryptMode && !flags.isPatchMode {
 		err := cps2rom.ValidateRomZip(romDef, romZip)
 		if err != nil {
 			throw(err.Error())
@@ -237,9 +246,6 @@ func main() {
 	} else if flags.isDiffMode {
 		handleDiffOperation()
 		Resources.Logger.Done(fmt.Sprintf("%s .mra patches written to %s", romName, flags.outputFile))
-	} else if flags.isPatchMode {
-		handlePatchOperation()
-		Resources.Logger.Done(fmt.Sprintf("patched %s written to %s", romName, flags.outputFile))
 	}
 	defer romZip.Close()
 	defer mraFile.Close()

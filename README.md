@@ -55,6 +55,8 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
       Diffs two ROMs and produces .mra <patch> tags for the differences. Default output file is ./<ROM set name>.mra
 ```
 
+You can find an example workflow [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
+
 
 ### Supported ROM Sets
 

@@ -11,6 +11,7 @@
 - [x] Decryption (MAME -> `.bin`, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
 - [x] Encryption (`.bin` -> MAME, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
 - [x] Splitting (`.bin` -> MAME) ✅ 2024-09-25
+- [x] Diff between clean and modified ROMs to produce `.mra` patches automagically ✅ 2024-09-26
 
 
 ### TODO
@@ -19,7 +20,6 @@
 - [ ] MAME <-> Darksoft conversion
 - [ ] `.mra`/`.ips` patching
 - [ ] Unshuffling graphics
-- [ ] Diff between clean and modified ROMs to produce `.ips` and `.mra` patches automagically
 
 
 ## Installation

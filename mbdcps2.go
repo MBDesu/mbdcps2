@@ -174,6 +174,8 @@ func handleDiffOperation() {
 	patchStrings := cps2rom.GenerateMraPatches(patches)
 	patchFile, err := file_utils.CreateFile(flags.outputFile)
 	checkErr(err)
+	_, err = patchFile.WriteString(Resources.Strings.Info["mraHeader"])
+	checkErr(err)
 	for _, patch := range patchStrings {
 		_, err = patchFile.WriteString(patch)
 		checkErr(err)

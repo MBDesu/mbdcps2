@@ -10,6 +10,7 @@ import (
 type StringResources struct {
 	Flag  map[string]string
 	Error map[string]string
+	Info  map[string]string
 }
 
 type LogAliases struct {
@@ -48,6 +49,10 @@ var errorStrings = map[string]string{
 	"bothEncrypts": "-d and -e are mutually exclusive, in addition to being incompatible with -p and -m",
 }
 
+var infoStrings = map[string]string{
+	"mraHeader": "<!--\n  these patches are for use with .mra files and are not the actual offsets; to get\n  the actual offsets, subtract 0x40 from these\n-->\n",
+}
+
 var blue = color.New(color.FgBlue).SprintFunc()
 var bold = color.New(color.Bold).SprintFunc()
 var green = color.New(color.FgGreen).SprintFunc()
@@ -73,6 +78,6 @@ func log(glyph string, msg string) {
 	fmt.Printf("%s %s", glyph, msg)
 }
 
-var Strings = StringResources{flagStrings, errorStrings}
+var Strings = StringResources{flagStrings, errorStrings, infoStrings}
 var LogText = LogAliases{blue, bold, green, red, yellow}
 var Logger = Log{info, warn, error, done}

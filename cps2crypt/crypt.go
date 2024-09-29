@@ -542,10 +542,17 @@ func parseKey(romDef cps2rom.RomDefinition, romZip *zip.ReadCloser) error {
 func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
 	newArr := make([]uint8, len(arr)*2)
 	for i := 0; i < len(arr); i++ {
-		val := uint8((arr[i] & 0xff00) >> 8)
-		newArr[i*2] = val
-		val = uint8(arr[i] & 0xff)
-		newArr[i*2+1] = val
+		if encDir == Decrypt {
+			val := uint8((arr[i] & 0xff00) >> 8)
+			newArr[i*2] = val
+			val = uint8(arr[i] & 0xff)
+			newArr[i*2+1] = val
+		} else {
+			val := uint8(arr[i] & 0xff)
+			newArr[i*2] = val
+			val = uint8((arr[i] & 0xff00) >> 8)
+			newArr[i*2+1] = val
+		}
 	}
 
 	return newArr
@@ -572,8 +579,10 @@ var masterKey_1 uint32 = 0x0
 var masterKey_2 uint32 = 0x0
 var rom []uint16
 var upperLimit int64 = 0xff0000
+var encDir Direction
 
 func Crypt(direction Direction, romDef cps2rom.RomDefinition, romZip *zip.ReadCloser, romBinary []uint8) ([]uint8, error) {
+	encDir = direction
 	err := parseKey(romDef, romZip)
 	if err != nil {
 		return nil, err

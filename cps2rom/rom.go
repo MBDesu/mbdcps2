@@ -2,6 +2,7 @@ package cps2rom
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -176,4 +177,74 @@ func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, er
 	}
 	Resources.Logger.Done("Done processing binary!")
 	return regionBinary, nil
+}
+
+func ParseRomZip(file_path string, romSetName string) (*zip.ReadCloser, *RomDefinition, error) {
+	romZipFile, err := file_utils.GetZipFileReader(file_path)
+	if err != nil {
+		return nil, nil, err
+	}
+	romDef, ok := (*RomDefinitions)[romSetName]
+	if !ok {
+		return nil, nil, errors.New(fmt.Sprintf("ROM set %s is invalid or unsupported", romSetName))
+	}
+	err = ValidateRomZip(romDef, romZipFile)
+	return romZipFile, &romDef, err
+}
+
+func copyZippedFileToNewZip(file *zip.File, newZip *zip.Writer) error {
+	romFile, err := file.Open()
+	if err != nil {
+		return err
+	}
+	header, err := zip.FileInfoHeader(file.FileInfo())
+	if err != nil {
+		return err
+	}
+	header.Name = file.Name
+	newZippedFile, err := newZip.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(newZippedFile, romFile)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func WriteModifiedRegionToZip(outputFilepath string, romZip *zip.ReadCloser, modifiedRegionZip *zip.ReadCloser, region RomRegion) error {
+	f, err := file_utils.CreateFile(outputFilepath)
+	if err != nil {
+		return err
+	}
+	excludedRegionFilenames := make([]string, len(region.Operations))
+	for i, operation := range region.Operations {
+		excludedRegionFilenames[i] = operation.Filename
+	}
+	newZip := zip.NewWriter(f)
+	for _, file := range romZip.File {
+		isInExcludedRegion := false
+		for _, filename := range excludedRegionFilenames {
+			if file.Name == filename {
+				isInExcludedRegion = true
+				break
+			}
+		}
+		if isInExcludedRegion {
+			continue
+		}
+		err = copyZippedFileToNewZip(file, newZip)
+		if err != nil {
+			return err
+		}
+	}
+	for _, file := range modifiedRegionZip.File {
+		err = copyZippedFileToNewZip(file, newZip)
+		if err != nil {
+			return err
+		}
+	}
+	newZip.Close()
+	return err
 }

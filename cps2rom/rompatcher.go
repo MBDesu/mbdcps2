@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -99,17 +98,9 @@ func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
 	return newArr
 }
 
-func parseMra(mraFile *os.File) (*MraXml, error) {
-	mraBytes, err := io.ReadAll(mraFile)
-	if err != nil {
-		return nil, err
-	}
+func parseMra(mraFile []byte) (*MraXml, error) {
 	var mraXml MraXml
-	err = xml.Unmarshal(mraBytes, &mraXml)
-	if err != nil {
-		return nil, err
-	}
-	defer mraFile.Close()
+	err := xml.Unmarshal(mraFile, &mraXml)
 	return &mraXml, err
 }
 
@@ -123,7 +114,7 @@ func mapOffsetToFile(offset int64, romRegion RomRegion) (string, int) {
 	return "", -1
 }
 
-func PatchRomRegionWithMra(romZip *zip.ReadCloser, mraFile *os.File, romRegion RomRegion, outputFilepath string) error {
+func PatchRomRegionWithMra(romZip *zip.ReadCloser, mraFile []byte, romRegion RomRegion, outputFilepath string) error {
 	Resources.Logger.Warn("Patching ROM...")
 	fileContentMap, err := file_utils.UnzipFilesToFilenameContentMap(romZip)
 	if err != nil {

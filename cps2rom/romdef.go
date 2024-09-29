@@ -39,3 +39,7 @@ func ParseRoms() error {
 	err := json.Unmarshal(romsBytes, &RomDefinitions)
 	return err
 }
+
+func GetRomDefinition(romSetName string) RomDefinition {
+	return (*RomDefinitions)[romSetName]
+}

@@ -7,3 +7,6 @@ build.sh
 *.zip
 vm*.0*
 vm*.1*
+vm*.2*
+*.key
+*.mra

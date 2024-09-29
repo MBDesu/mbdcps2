@@ -1,4 +1,4 @@
-package file_utils
+package utils
 
 import (
 	"archive/zip"
@@ -20,6 +20,26 @@ func CreateFile(file_path string) (*os.File, error) {
 		return nil, err
 	}
 	return f, err
+}
+
+func DeleteFile(file_path string) error {
+	_, err := os.Stat(filepath.Dir(file_path))
+	if err != nil {
+		return err
+	}
+	if os.IsNotExist(err) {
+		return err
+	}
+	err = os.Remove(filepath.Clean(file_path))
+	return err
+}
+
+func GetFileContents(file_path string) ([]byte, error) {
+	return os.ReadFile(filepath.Clean(file_path))
+}
+
+func GetZipFileReader(file_path string) (*zip.ReadCloser, error) {
+	return zip.OpenReader(filepath.Clean(file_path))
 }
 
 func WriteBytesToFile(file_path string, bytes []byte) error {

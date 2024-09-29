@@ -30,6 +30,8 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
 
 ## Usage
 
+You can find an example workflow/usage [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
+
 ```
   -b string
         Specifies an input .bin file. Required with the e flag
@@ -61,8 +63,6 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
         Specifies an input ROM .zip. Required with d, m, p flags
 
 ```
-
-You can find an example workflow [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
 
 
 ### Supported ROM Sets

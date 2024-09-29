@@ -30,33 +30,35 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
 ## Usage
 
 ```
-  -b </path/to/ROM.bin> -s -n <ROM set name> ![-d | -e] [-o </path/to/output.zip>]
-      Supplied with -s when neither -d nor -e are supplied to specify bin file input for splitting into ROM files. Default output file is ./<ROM set name>.zip
+  -b string
+        Specifies an input .bin file. Required with the e flag
     
-  -d -r </path/to/ROM.zip> -n <ROM set name> [-s] [-o <output filename>]
-      Decrypt mode. Decrypts and concatenates the executable regions of ROM into a single .bin file, unless the -s flag is set. Default output file is ./<ROM set name>.bin, unless the -s flag is set, in which case it will be ./<ROM set name>.zip
+  -d    -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.bin>]
+        Decrypt mode. Decrypts a ROM's opcodes. Output is a concatenation of the decrypted binary .bin
     
-  -e -r </path/to/ROM.zip> -n <ROM set name> [-o <output filename>]
-      Encrypt mode. Encrypts and splits the executable regions of ROM back into their MAME format ROM files
+  -e    -b </path/to/decrypted.bin> -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip>]
+        Encrypt mode. Encrypts a ROM's opcodes. Output is a full ROM .zip
     
-  -n <ROM set name>
-      Required. Specifies the ROM set (usually the ZIP name)
+  -m    -z </path/to/ROM.zip> -x </path/to/modified/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip>]
+        Diff mode. Diffs two ROMs of the same ROM set and produces a file with .mra style patches in it. Output is said .mra file
     
-  -o </path/to/output/file>
-      Optional flag for specifying output file for operations that output a file
+  -n string
+    
+  -o string
+        Specifies an output file path. Optional
+    
+  -p    -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip]
+        Patch mode. Patches a ROM .zip with a .mra file's <patch>es. Output is a full ROM .zip
+    
+  -r string
+        Specifies an input .mra to patch the z flag input with. Required with the p flag
+    
+  -x string
+        Specifies an input ROM .zip to diff against the z flag for generating .mra patches. Required with the m flag
+    
+  -z string
+        Specifies an input ROM .zip. Required with d, m, p flags
 
-  -p value
-      -r </path/to/clean/ROM.zip> -n <ROM set name> [-d] [-o </path/to/output.zip or .bin>]
-      Patch mode. Value supplied is the path to a .mra file. Patches a ROM with a .mra patch set. Default output file is <./<ROM set name>_modified.zip>
-    
-  -r </path/to/ROM.zip> -n <ROM set name>
-      Required when using -d, -e, or -x. Specifies a ROM .zip file to open
-    
-  -s -n <ROM set name> [-b </path/to/file.bin> & ![-d | -e]] [-d | -e] [-o </path/to/output.zip>]
-      Split mode. Splits a concatenated binary back into its original MAME files. This flag is usable with -d or -e, but not if -b is set
-    
-  -x </path/to/modified/ROM.zip or .bin> -r </path/to/clean/ROM.zip> -n <ROM set name> [-o </path/to/output/file.mra>]
-      Diffs two ROMs and produces .mra <patch> tags for the differences. Default output file is ./<ROM set name>.mra
 ```
 
 You can find an example workflow [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).

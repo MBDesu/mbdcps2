@@ -8,8 +8,8 @@
 
 ### Implemented
 
-- [x] Decryption (MAME -> `.bin`, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
-- [x] Encryption (`.bin` -> MAME, MAME -> MAME, `.bin` -> `.bin`) ✅ 2024-09-25
+- [x] Decryption (MAME -> `.bin`) ✅ 2024-09-25
+- [x] Encryption (`.bin` -> MAME) ✅ 2024-09-25
 - [x] Diff between clean and modified ROMs to produce `.mra` patches automagically ✅ 2024-09-26
 - [x] `.mra` patching ✅ 2024-09-27
 

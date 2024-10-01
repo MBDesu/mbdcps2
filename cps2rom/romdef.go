@@ -28,6 +28,7 @@ type RomRegionOperation struct {
 	Skip      int    `json:"skip,omitempty"`
 	Reverse   bool   `json:"reverse,omitempty"`
 	Filename  string `json:"filename,omitempty"`
+	FillValue int    `json:"fillValue,omitempty"`
 }
 
 //go:embed roms.json

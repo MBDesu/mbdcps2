@@ -3,16 +3,12 @@ package cps2rom
 import (
 	"archive/zip"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 	"strings"
 
 	"github.com/MBDesu/mbdcps2/Resources"
-	file_utils "github.com/MBDesu/mbdcps2/utils"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 )
 
 type RomPatch struct {
@@ -98,32 +94,23 @@ func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
 	return newArr
 }
 
-func parseMra(mraFile []byte) (*MraXml, error) {
+func ParseMra(mraFile []byte) (*MraXml, error) {
 	var mraXml MraXml
 	err := xml.Unmarshal(mraFile, &mraXml)
 	return &mraXml, err
 }
 
-func mapOffsetToFile(offset int64, romRegion RomRegion) (string, int) {
+func mapOffsetToFile(baseOffset int64, offset int64, romRegion RomRegion) (string, int) {
 	for _, operation := range romRegion.Operations {
-		actualOffset := offset - 0x40
-		if actualOffset >= int64(operation.Offset) && offset < int64(operation.Offset+operation.Length) {
+		actualOffset := offset - 0x40 - baseOffset
+		if actualOffset >= int64(operation.Offset) && actualOffset < int64(operation.Offset+operation.Length) {
 			return operation.Filename, int(actualOffset - int64(operation.Offset))
 		}
 	}
 	return "", -1
 }
 
-func PatchRomRegionWithMra(romZip *zip.ReadCloser, mraFile []byte, romRegion RomRegion, outputFilepath string) error {
-	Resources.Logger.Warn("Patching ROM...")
-	fileContentMap, err := file_utils.UnzipFilesToFilenameContentMap(romZip)
-	if err != nil {
-		return err
-	}
-	mra, err := parseMra(mraFile)
-	if err != nil {
-		return err
-	}
+func PatchRomRegionWithMra(romZip *zip.ReadCloser, mra MraXml, romRegion RomRegion, fileContentMap map[string][]byte, baseOffset int, outputFilepath string) error {
 	for _, rom := range mra.Rom {
 		lastOperationFilename := ""
 		for _, patch := range rom.Patch {
@@ -141,32 +128,21 @@ func PatchRomRegionWithMra(romZip *zip.ReadCloser, mraFile []byte, romRegion Rom
 				byte8 := uint8(byte16 & 0xff)
 				data = append(data, byte8)
 			}
-			operationFilename, absoluteOffset := mapOffsetToFile(offset, romRegion)
-			if operationFilename != lastOperationFilename {
-				Resources.Logger.Info(fmt.Sprintf("Patching %s", operationFilename))
-				lastOperationFilename = operationFilename
-			}
-			for i, dataByte := range data {
-				fileContentMap[operationFilename][absoluteOffset+i] = dataByte
+			if len(data) > 0 {
+				operationFilename, absoluteOffset := mapOffsetToFile(int64(baseOffset), offset, romRegion)
+				if operationFilename == "" || absoluteOffset == -1 {
+					continue
+				} else if operationFilename != lastOperationFilename {
+					Resources.Logger.Info(fmt.Sprintf("  Patching %s", operationFilename))
+					lastOperationFilename = operationFilename
+				}
+				for i, dataByte := range data {
+					fileContentMap[operationFilename][absoluteOffset+i] = dataByte
+				}
 			}
 		}
 	}
-	Resources.Logger.Done("Done patching ROM!")
-	Resources.Logger.Warn("Writing files to .zip...")
-	f, err := file_utils.CreateFile(outputFilepath)
-	if err != nil {
-		return err
-	}
-	w := *zip.NewWriter(f)
-	for file, content := range fileContentMap {
-		x, err := w.Create(file)
-		if err != nil {
-			return err
-		}
-		x.Write(content)
-	}
-	w.Close()
-	return err
+	return nil
 }
 
 func createUint16ArrayFromUint8Array(arr []uint8) []uint16 {
@@ -184,56 +160,49 @@ func createUint16ArrayFromUint8Array(arr []uint8) []uint16 {
 	return newArr
 }
 
-func DiffTwoBins(romName string, one []uint8, two []uint8, region RomRegion, showTable bool) (*[]RomPatch, error) {
-	Resources.Logger.Warn("Diffing ROMs...")
-	romPatches := make([]RomPatch, 0, 0x1000)
-	one_16 := createUint16ArrayFromUint8Array(one)
-	two_16 := createUint16ArrayFromUint8Array(two)
-	if len(one_16) != len(two_16) {
-		return nil, errors.New(Resources.Strings.Error["diffSize"])
-	}
+func DiffRomRegion(baseOffset int, region RomRegion, first *zip.ReadCloser, second *zip.ReadCloser) (*[]RomPatch, error) {
+	var romPatches []RomPatch
 	for _, operation := range region.Operations {
-		Resources.Logger.Info(fmt.Sprintf("Diffing %s, starting at offset +0x%06x", operation.Filename, operation.Offset))
-		for i := (operation.Offset / 2); i < (operation.Offset/2)+(operation.Length/2); i++ {
-			data := make([]uint16, 0, 0x10000)
-			for ; one_16[i] != two_16[i]; i++ {
-				data = append(data, two_16[i])
+		if operation.Filename != "" {
+			l, err := first.Open(operation.Filename)
+			if err != nil {
+				return nil, err
 			}
-			if len(data) > 0 {
-				data8 := createUint8ArrayFromUint16Array(data)
-				romPatches = append(romPatches, RomPatch{operation.Filename, (i * 2) - len(data8), data8})
+			r, err := second.Open(operation.Filename)
+			if err != nil {
+				return nil, err
 			}
-		}
-	}
-	one_8 := createUint8ArrayFromUint16Array(one_16)
-	if len(romPatches) > 0 && showTable {
-		for _, patch := range romPatches {
-			patch.Offset *= 2
-		}
-		t := table.NewWriter()
-		t.SetOutputMirror(os.Stdout)
-		t.AppendHeader(table.Row{"File", "Offset", "1", "2", "Num bytes"})
-		t.SetStyle(table.StyleColoredBlackOnBlueWhite)
-		t.Style().Color.RowAlternate = text.Colors{text.BgBlue, text.FgYellow}
-		t.Style().Color.Row = text.Colors{text.BgBlue, text.FgYellow}
-		fmt.Println()
-		for _, patch := range romPatches {
-			left := ""
-			right := ""
-			for i := range patch.Data {
-				left += fmt.Sprintf("%02x ", one_8[patch.Offset+i])
-				right += fmt.Sprintf("%02x ", patch.Data[i])
-				if i > 0 && i%0xf == 0 {
-					left += "\n"
-					right += "\n"
+			lb, err := io.ReadAll(l)
+			if err != nil {
+				return nil, err
+			}
+			rb, err := io.ReadAll(r)
+			if err != nil {
+				return nil, err
+			}
+			l16 := createUint16ArrayFromUint8Array(lb)
+			r16 := createUint16ArrayFromUint8Array(rb)
+			bytesChanged := 0
+			for i := 0; i < operation.Length/2; i++ {
+				data := make([]uint16, 0, 0x1000)
+				for ; l16[i] != r16[i]; i++ {
+					data = append(data, r16[i])
+				}
+				if len(data) > 0 {
+					data8 := createUint8ArrayFromUint16Array(data)
+					romPatches = append(romPatches, RomPatch{operation.Filename, (baseOffset + operation.Offset + (i * 2)) - len(data8), data8})
+					bytesChanged += len(data8)
 				}
 			}
-			t.AppendRow(table.Row{patch.Filename, fmt.Sprintf("%06x", patch.Offset), left, right, fmt.Sprintf("0x%02x", len(patch.Data))})
+			logStr := fmt.Sprintf("  %s", operation.Filename)
+			if bytesChanged > 0 {
+				logStr += fmt.Sprintf(": %d bytes changed", bytesChanged)
+				Resources.Logger.Error(logStr)
+			} else {
+				Resources.Logger.Info(logStr)
+			}
 		}
-		t.Render()
-		fmt.Println()
 	}
-	Resources.Logger.Done("Done diffing ROMs!")
 	return &romPatches, nil
 }
 

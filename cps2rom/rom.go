@@ -118,18 +118,32 @@ func ValidateRomZip(romDefinition RomDefinition, zip *zip.ReadCloser) error {
 func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, error) {
 	Resources.Logger.Warn("Processing binary...")
 	regionBinary := make([]uint8, region.Size)
-	for i := range len(region.Operations) {
-		operation := region.Operations[i]
+
+	for _, operation := range region.Operations {
 		var bufPtr = operation.Offset
+
+		// TODO: implement other operations
+		switch strings.ToLower(operation.Type) {
+		case "fill":
+			for range operation.Length {
+				regionBinary[bufPtr] = uint8(operation.FillValue & 0xff)
+			}
+			continue
+		case "continue":
+			bufPtr += operation.Length
+			continue
+		default:
+			break
+		}
+		if operation.Type != strings.ToLower("load") {
+			continue
+		}
 		var operationFile *zip.File
 		for _, file := range romZip.File {
 			if operation.Filename == filepath.Base(file.Name) {
 				operationFile = file
 				break
 			}
-		}
-		if operation.Type != strings.ToLower("load") {
-			continue
 		}
 		if operationFile != nil {
 			r, err := operationFile.Open()

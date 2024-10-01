@@ -21,21 +21,23 @@ import (
 //
 // | Mode             | Flag | Priority | Input File Format | Output File Format | ROM set name |
 // | ---------------- | :--: | :------: | :---------------: | :----------------: | :----------: |
-// | Convert          |  c   |    4     |       .zip        |        .zip        |     N/A      |
+// | Concat           |  c   |    5     |       .zip        |        .bin        |   Required   |
 // | Decrypt          |  d   |    1     |       .zip        |        .bin        |   Required   |
 // | Encrypt          |  e   |    2     |     .bin+.zip     |        .zip        |   Required   |
-// | Generate .mra    |  m   |    5     |       .zip        |        .mra        |   Required   |
+// | Generate .mra    |  m   |    4     |       .zip        |        .mra        |   Required   |
 // | Patch            |  p   |    3     |       .zip        |        .zip        |   Required   |
+// | Decode gfx       |  g   |    6     |       .zip        |        .bin        |   Required   |
 //
-// | Argument        | Flag | Required With |
-// | :-------------- | :--: | :-----------: |
-// | Output filepath |  o   |      N/A      |
-// | Input zip       |  z   |  c, d, m, p   |
-// | Input bin       |  b   |       e       |
-// | ROM set name    |  n   |  d, e, m, p   |
-// | Input diff zip  |  x   |       m       |
+// | Argument        | Flag |   Required With     |
+// | :-------------- | :--: | :-----------------: |
+// | Output filepath |  o   |       N/A           |
+// | Input zip       |  z   |    c, d, g, m, p    |
+// | Input bin       |  b   |       e             |
+// | ROM set name    |  n   |  c, d, e, g, m, p   |
+// | Input diff zip  |  x   |       m             |
 
 type Flags struct {
+	isConcatMode    bool
 	isDecryptMode   bool
 	isEncryptMode   bool
 	isPatchMode     bool
@@ -51,24 +53,25 @@ type Flags struct {
 var flags Flags
 
 func parseFlags() {
+	binFile := flag.String("b", "", Resources.Strings.Flag["binFileDesc"])
+	concatMode := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
 	decryptMode := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptMode := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
-	patchMode := flag.Bool("p", false, Resources.Strings.Flag["patchModeDesc"])
 	diffMode := flag.Bool("m", false, Resources.Strings.Flag["diffModeDesc"])
 	romName := flag.String("n", "", Resources.Strings.Flag["romNameDesc"])
-	binFile := flag.String("b", "", Resources.Strings.Flag["binFileDesc"])
 	outputFile := flag.String("o", "", Resources.Strings.Flag["outputFileDesc"])
-	zipFile := flag.String("z", "", Resources.Strings.Flag["zipFileDesc"])
-	diffZipFile := flag.String("x", "", Resources.Strings.Flag["diffZipDesc"])
+	patchMode := flag.Bool("p", false, Resources.Strings.Flag["patchModeDesc"])
 	mraFile := flag.String("r", "", Resources.Strings.Flag["mraFileDesc"])
+	diffZipFile := flag.String("x", "", Resources.Strings.Flag["diffZipDesc"])
+	zipFile := flag.String("z", "", Resources.Strings.Flag["zipFileDesc"])
 
 	flag.Parse()
-	flags = Flags{*decryptMode, *encryptMode, *patchMode, *diffMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
+	flags = Flags{*concatMode, *decryptMode, *encryptMode, *patchMode, *diffMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
 	validateFlags()
 }
 
 func validateFlags() {
-	zipFileRequired := flags.isDecryptMode || flags.isEncryptMode || flags.isMraMode || flags.isPatchMode
+	zipFileRequired := flags.isDecryptMode || flags.isEncryptMode || flags.isMraMode || flags.isPatchMode || flags.isConcatMode
 	if zipFileRequired && flags.zipFilepath == "" {
 		flag.Usage()
 		throw(Resources.Strings.Error["noRomFile"])
@@ -78,7 +81,7 @@ func validateFlags() {
 		flag.Usage()
 		throw(Resources.Strings.Error["noBinFile"])
 	}
-	romSetNameRequired := flags.isDecryptMode || flags.isEncryptMode || flags.isMraMode || flags.isPatchMode
+	romSetNameRequired := flags.isDecryptMode || flags.isEncryptMode || flags.isMraMode || flags.isPatchMode || flags.isConcatMode
 	if romSetNameRequired && flags.romSetName == "" {
 		flag.Usage()
 		throw(Resources.Strings.Error["noRomSetName"])
@@ -105,6 +108,21 @@ func check(err error) {
 	if err != nil {
 		throw(err.Error())
 	}
+}
+
+func concat() {
+	if flags.outputFilepath == "" {
+		flags.outputFilepath = flags.romSetName + ".bin"
+	}
+	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
+	check(err)
+	defer romZipFile.Close()
+	romBinary, err := cps2rom.ProcessRegionFromZip(romZipFile, romDef.Maincpu)
+	check(err)
+	f, err := file_utils.CreateFile(flags.outputFilepath)
+	check(err)
+	f.Write(romBinary)
+	f.Close()
 }
 
 func decrypt() {
@@ -153,9 +171,37 @@ func patch() {
 	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
 	check(err)
 	mraFile, err := file_utils.GetFileContents(flags.mraFilepath)
-	// TODO: make it so you can patch more than just maincpu
-	err = cps2rom.PatchRomRegionWithMra(romZipFile, mraFile, romDef.Maincpu, flags.outputFilepath)
 	check(err)
+	mra, err := cps2rom.ParseMra(mraFile)
+	check(err)
+	fileContentMap, err := file_utils.UnzipFilesToFilenameContentMap(romZipFile)
+	check(err)
+	Resources.Logger.Warn("Patching ROM...")
+	romRegions := []struct {
+		regionName string
+		region     cps2rom.RomRegion
+	}{{"maincpu", romDef.Maincpu}, {"audiocpu", romDef.Audiocpu}, {"qsound", romDef.Qsound}, {"gfx", romDef.Gfx}}
+	baseOffset := 0
+	for _, region := range romRegions {
+		Resources.Logger.Info(fmt.Sprintf("%s (+0x%06x):", region.regionName, baseOffset))
+		err = cps2rom.PatchRomRegionWithMra(romZipFile, *mra, region.region, fileContentMap, baseOffset, flags.outputFilepath)
+		if region.regionName == "audiocpu" {
+			baseOffset += 0x40000
+		} else {
+			baseOffset += region.region.Size
+		}
+	}
+	check(err)
+	Resources.Logger.Done("Done patching ROM!")
+	Resources.Logger.Warn("Writing files to .zip...")
+	f, err := file_utils.CreateFile(flags.outputFilepath)
+	w := *zip.NewWriter(f)
+	for file, content := range fileContentMap {
+		x, err := w.Create(file)
+		check(err)
+		x.Write(content)
+	}
+	w.Close()
 	Resources.Logger.Done(fmt.Sprintf("Patched ROM written to %s!", flags.outputFilepath))
 }
 
@@ -163,19 +209,29 @@ func diff() {
 	if flags.outputFilepath == "" {
 		flags.outputFilepath = flags.romSetName + ".mra"
 	}
-	var lBytes []uint8
-	var rBytes []uint8
-	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
+	var patches []cps2rom.RomPatch
+	firstRom, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
 	check(err)
-	modifiedRomZip, _, err := cps2rom.ParseRomZip(flags.diffZipFilepath, flags.romSetName)
-	// TODO: make it so you can diff more than just maincpu for patchering
-	lBytes, err = cps2rom.ProcessRegionFromZip(romZipFile, romDef.Maincpu)
+	secondRom, _, err := cps2rom.ParseRomZip(flags.diffZipFilepath, flags.romSetName)
 	check(err)
-	rBytes, err = cps2rom.ProcessRegionFromZip(modifiedRomZip, romDef.Maincpu)
-	check(err)
-	patches, err := cps2rom.DiffTwoBins(flags.romSetName, lBytes, rBytes, romDef.Maincpu, false)
-	check(err)
-	patchStrings := cps2rom.GenerateMraPatches(patches)
+	romRegions := []struct {
+		regionName string
+		region     cps2rom.RomRegion
+	}{{"maincpu", romDef.Maincpu}, {"audiocpu", romDef.Audiocpu}, {"qsound", romDef.Qsound}, {"gfx", romDef.Gfx}}
+	baseOffset := 0
+	Resources.Logger.Warn("Diffing ROMs...")
+	for _, region := range romRegions {
+		Resources.Logger.Info(fmt.Sprintf("%s (+0x%06x):", region.regionName, baseOffset))
+		regionPatches, err := cps2rom.DiffRomRegion(baseOffset, region.region, firstRom, secondRom)
+		check(err)
+		patches = append(patches, *regionPatches...)
+		if region.regionName == "audiocpu" {
+			baseOffset += 0x40000
+		} else {
+			baseOffset += region.region.Size
+		}
+	}
+	patchStrings := cps2rom.GenerateMraPatches(&patches)
 	patchFile, err := file_utils.CreateFile(flags.outputFilepath)
 	check(err)
 	_, err = patchFile.WriteString(Resources.Strings.Info["mraHeader"])
@@ -200,6 +256,8 @@ func main() {
 		patch()
 	} else if flags.isMraMode {
 		diff()
+	} else if flags.isConcatMode {
+		concat()
 	}
 	os.Exit(0)
 }

@@ -29,6 +29,7 @@ type Log struct {
 }
 
 var flagStrings = map[string]string{
+	"concatModeDesc":  "-z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.bin>]\nConcatenation mode. Concatenates the maincpu region into a single binary file\n",
 	"decryptModeDesc": "-z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.bin>]\nDecrypt mode. Decrypts a ROM's opcodes. Output is a concatenation of the decrypted binary .bin\n",
 	"encryptModeDesc": "-b </path/to/decrypted.bin> -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip>]\nEncrypt mode. Encrypts a ROM's opcodes. Output is a full ROM .zip\n",
 	"patchModeDesc":   "-z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip]\nPatch mode. Patches a ROM .zip with a .mra file's <patch>es. Output is a full ROM .zip\n",

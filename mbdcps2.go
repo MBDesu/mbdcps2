@@ -58,7 +58,7 @@ func parseFlags() {
 	decryptMode := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptMode := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
 	diffMode := flag.Bool("m", false, Resources.Strings.Flag["diffModeDesc"])
-	romName := flag.String("n", "", Resources.Strings.Flag["romNameDesc"])
+	romName := flag.String("n", "", Resources.Strings.Flag["romSetNameDesc"])
 	outputFile := flag.String("o", "", Resources.Strings.Flag["outputFileDesc"])
 	patchMode := flag.Bool("p", false, Resources.Strings.Flag["patchModeDesc"])
 	mraFile := flag.String("r", "", Resources.Strings.Flag["mraFileDesc"])

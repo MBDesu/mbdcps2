@@ -37,6 +37,9 @@ You can find an example workflow/usage [here](https://gist.github.com/MBDesu/c33
   -b string
         Specifies an input .bin file. Required with the e flag
     
+  -c    -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.bin>]
+        Concatenation mode. Concatenates the maincpu region into a single binary file
+    
   -d    -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.bin>]
         Decrypt mode. Decrypts a ROM's opcodes. Output is a concatenation of the decrypted binary .bin
     
@@ -47,6 +50,7 @@ You can find an example workflow/usage [here](https://gist.github.com/MBDesu/c33
         Diff mode. Diffs two ROMs of the same ROM set and produces a file with .mra style patches in it. Output is said .mra file
     
   -n string
+        Specifies the ROM set name for the ROM set you are working with. Usually the .zip filename. Required with the c, d, e, m, p flags
     
   -o string
         Specifies an output file path. Optional
@@ -61,7 +65,7 @@ You can find an example workflow/usage [here](https://gist.github.com/MBDesu/c33
         Specifies an input ROM .zip to diff against the z flag for generating .mra patches. Required with the m flag
     
   -z string
-        Specifies an input ROM .zip. Required with d, m, p flags
+        Specifies an input ROM .zip. Required with c, d, m, p flags
 
 ```
 

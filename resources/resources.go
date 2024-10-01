@@ -34,10 +34,10 @@ var flagStrings = map[string]string{
 	"encryptModeDesc": "-b </path/to/decrypted.bin> -z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip>]\nEncrypt mode. Encrypts a ROM's opcodes. Output is a full ROM .zip\n",
 	"patchModeDesc":   "-z </path/to/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip]\nPatch mode. Patches a ROM .zip with a .mra file's <patch>es. Output is a full ROM .zip\n",
 	"diffModeDesc":    "-z </path/to/ROM.zip> -x </path/to/modified/ROM.zip> -n <ROM set name> [-o </path/to/output/file.zip>]\nDiff mode. Diffs two ROMs of the same ROM set and produces a file with .mra style patches in it. Output is said .mra file\n",
-	"romSetNameDesc":  "Specifies the ROM set name for the ROM set you are working with. Usually the .zip filename. Required with the d, e, m, p flags",
+	"romSetNameDesc":  "Specifies the ROM set name for the ROM set you are working with. Usually the .zip filename. Required with the c, d, e, m, p flags\n",
 	"binFileDesc":     "Specifies an input .bin file. Required with the e flag\n",
 	"outputFileDesc":  "Specifies an output file path. Optional\n",
-	"zipFileDesc":     "Specifies an input ROM .zip. Required with d, m, p flags\n",
+	"zipFileDesc":     "Specifies an input ROM .zip. Required with c, d, m, p flags\n",
 	"diffZipDesc":     "Specifies an input ROM .zip to diff against the z flag for generating .mra patches. Required with the m flag\n",
 	"mraFileDesc":     "Specifies an input .mra to patch the z flag input with. Required with the p flag\n",
 }

@@ -12,15 +12,16 @@
 - [x] Encryption (`.bin` -> MAME) ✅ 2024-09-25
 - [x] Diff between clean and modified ROMs to produce `.mra` patches automagically ✅ 2024-09-26
 - [x] `.mra` patching ✅ 2024-09-27
+- [x] Patching of graphics/audio/etc. regions ✅ 2024-10-01
+- [x] Concatenating (MAME -> `.bin` ) ✅ 2024-10-01
 
 
 ### TODO
 
 - [ ] Splitting (`.bin` -> MAME\[encryption spits out a full ROM .zip from a `.bin` file, but that's the only splitting exposed to the user right now])
-- [ ] Concatenating (MAME -> `.bin` \[decryption spits out a concatenated `maincpu` region, but that's the only concatenation exposed to the user right now])
 - [ ] MAME <-> Darksoft conversion
 - [ ] Unshuffling graphics
-- [ ] Patching of graphics/audio/etc. regions
+
 
 
 ## Installation

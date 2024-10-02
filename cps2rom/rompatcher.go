@@ -151,8 +151,8 @@ func createUint16ArrayFromUint8Array(arr []uint8) []uint16 {
 	i := 0
 	j := 0
 	for i < length {
-		val := uint16(arr[i+1]) << 8
-		val |= uint16(arr[i])
+		val := uint16(arr[i+1])
+		val |= uint16(arr[i]) << 8
 		newArr[j] = val
 		i += 2
 		j++

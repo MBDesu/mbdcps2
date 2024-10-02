@@ -12,41 +12,40 @@ import (
 	file_utils "github.com/MBDesu/mbdcps2/utils"
 )
 
-func ValidateRomForRegion(romRegion RomRegion, zip *zip.ReadCloser) error {
-	requiredFiles := make([]string, 0, len(romRegion.Operations))
-	if len(romRegion.Operations) > 0 {
-		for _, operation := range romRegion.Operations {
-			if operation.Filename != "" {
-				requiredFiles = append(requiredFiles, operation.Filename)
-			}
-		}
-	}
-	hasFiles := make(map[string]bool)
-	for _, filename := range requiredFiles {
-		hasFiles[filename] = false
-	}
-	for _, file := range zip.File {
-		var name = file.Name
-		_, ok := hasFiles[name]
-		if ok {
-			hasFiles[name] = true
-		}
-	}
-
-	numMissingFiles := 0
-	missingFiles := make([]string, 0, len(requiredFiles))
-	for filename, hasFile := range hasFiles {
-		if !hasFile {
-			numMissingFiles = numMissingFiles + 1
-			missingFiles = append(missingFiles, filename)
-		}
-	}
-	if numMissingFiles > 0 {
-		return fmt.Errorf("missing %d files: %s", numMissingFiles, Resources.LogText.Bold(strings.Join(missingFiles, ", ")))
-	}
-	return nil
-}
-
+//	func ValidateRomForRegion(romRegion RomRegion, zip *zip.ReadCloser) error {
+//		requiredFiles := make([]string, 0, len(romRegion.Operations))
+//		if len(romRegion.Operations) > 0 {
+//			for _, operation := range romRegion.Operations {
+//				if operation.Filename != "" {
+//					requiredFiles = append(requiredFiles, operation.Filename)
+//				}
+//			}
+//		}
+//		hasFiles := make(map[string]bool)
+//		for _, filename := range requiredFiles {
+//			hasFiles[filename] = false
+//		}
+//		for _, file := range zip.File {
+//			var name = file.Name
+//			_, ok := hasFiles[name]
+//			if ok {
+//				hasFiles[name] = true
+//			}
+//		}
+//
+//		numMissingFiles := 0
+//		missingFiles := make([]string, 0, len(requiredFiles))
+//		for filename, hasFile := range hasFiles {
+//			if !hasFile {
+//				numMissingFiles = numMissingFiles + 1
+//				missingFiles = append(missingFiles, filename)
+//			}
+//		}
+//		if numMissingFiles > 0 {
+//			return fmt.Errorf("missing %d files: %s", numMissingFiles, Resources.LogText.Bold(strings.Join(missingFiles, ", ")))
+//		}
+//		return nil
+//	}
 func SplitRegionToFiles(romRegion RomRegion, binary []byte, zipPath string) error {
 	f, err := file_utils.CreateFile(zipPath)
 	if err != nil {
@@ -94,7 +93,7 @@ func ValidateRomZip(romDefinition RomDefinition, zip *zip.ReadCloser) error {
 	}
 	for _, file := range zip.File {
 		var name = file.Name
-		_, ok := hasFiles[name]
+		_, ok := hasFiles[name] // using extance of the key
 		if ok {
 			hasFiles[name] = true
 		}
@@ -109,7 +108,11 @@ func ValidateRomZip(romDefinition RomDefinition, zip *zip.ReadCloser) error {
 		}
 	}
 	if numMissingFiles > 0 {
-		return fmt.Errorf("missing %d files: %s", numMissingFiles, Resources.LogText.Bold(strings.Join(missingFiles, ", ")))
+		logString := fmt.Sprintf("missing %d files:\n", numMissingFiles)
+		for _, missingFile := range missingFiles {
+			logString += "    " + Resources.LogText.Bold(missingFile) + "\n"
+		}
+		return fmt.Errorf(logString)
 	}
 
 	return nil
@@ -194,6 +197,7 @@ func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, er
 }
 
 func ParseRomZip(file_path string, romSetName string) (*zip.ReadCloser, *RomDefinition, error) {
+	Resources.Logger.Warn(fmt.Sprintf("Parsing %s...", filepath.Clean(file_path)))
 	romZipFile, err := file_utils.GetZipFileReader(file_path)
 	if err != nil {
 		return nil, nil, err
@@ -203,6 +207,9 @@ func ParseRomZip(file_path string, romSetName string) (*zip.ReadCloser, *RomDefi
 		return nil, nil, errors.New(fmt.Sprintf("ROM set %s is invalid or unsupported", romSetName))
 	}
 	err = ValidateRomZip(romDef, romZipFile)
+	if err == nil {
+		Resources.Logger.Done("ROM OK")
+	}
 	return romZipFile, &romDef, err
 }
 

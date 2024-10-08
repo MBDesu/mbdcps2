@@ -12,40 +12,6 @@ import (
 	file_utils "github.com/MBDesu/mbdcps2/utils"
 )
 
-//	func ValidateRomForRegion(romRegion RomRegion, zip *zip.ReadCloser) error {
-//		requiredFiles := make([]string, 0, len(romRegion.Operations))
-//		if len(romRegion.Operations) > 0 {
-//			for _, operation := range romRegion.Operations {
-//				if operation.Filename != "" {
-//					requiredFiles = append(requiredFiles, operation.Filename)
-//				}
-//			}
-//		}
-//		hasFiles := make(map[string]bool)
-//		for _, filename := range requiredFiles {
-//			hasFiles[filename] = false
-//		}
-//		for _, file := range zip.File {
-//			var name = file.Name
-//			_, ok := hasFiles[name]
-//			if ok {
-//				hasFiles[name] = true
-//			}
-//		}
-//
-//		numMissingFiles := 0
-//		missingFiles := make([]string, 0, len(requiredFiles))
-//		for filename, hasFile := range hasFiles {
-//			if !hasFile {
-//				numMissingFiles = numMissingFiles + 1
-//				missingFiles = append(missingFiles, filename)
-//			}
-//		}
-//		if numMissingFiles > 0 {
-//			return fmt.Errorf("missing %d files: %s", numMissingFiles, Resources.LogText.Bold(strings.Join(missingFiles, ", ")))
-//		}
-//		return nil
-//	}
 func SplitRegionToFiles(romRegion RomRegion, binary []byte, zipPath string) error {
 	f, err := file_utils.CreateFile(zipPath)
 	if err != nil {
@@ -174,7 +140,9 @@ func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, er
 				}
 			} else if !operation.Reverse {
 				for j := 0; j < operation.Length && bytesLeft > 0; j++ {
+					// fmt.Printf("bufPtr = %06x\n", bufPtr)
 					for k := 0; k < operation.GroupSize && bytesLeft > 0; k++ {
+						// fmt.Printf("%06x\n", k+bufPtr)
 						regionBinary[k+bufPtr] = p[j+k]
 						bytesLeft--
 					}

@@ -54,6 +54,21 @@ func WriteBytesToFile(file_path string, bytes []byte) error {
 	return err
 }
 
+func SwapFileBytes(file_path string) ([]byte, error) {
+	fileContents, err := GetFileContents(file_path)
+	if err != nil {
+		return nil, err
+	}
+	i := 0
+	for i < len(fileContents) {
+		tmp := fileContents[i]
+		fileContents[i] = fileContents[i+1]
+		fileContents[i+1] = tmp
+		i += 2
+	}
+	return fileContents, err
+}
+
 func UnzipFilesToFilenameContentMap(zipFile *zip.ReadCloser) (map[string][]byte, error) {
 	var bytes = make(map[string][]byte, len(zipFile.File))
 	for _, file := range zipFile.File {

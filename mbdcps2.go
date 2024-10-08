@@ -6,10 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/MBDesu/mbdcps2/Resources"
 	"github.com/MBDesu/mbdcps2/cps2crypt"
 	"github.com/MBDesu/mbdcps2/cps2rom"
+	"github.com/MBDesu/mbdcps2/tui"
 	file_utils "github.com/MBDesu/mbdcps2/utils"
 )
 
@@ -40,8 +42,10 @@ type Flags struct {
 	isConcatMode    bool
 	isDecryptMode   bool
 	isEncryptMode   bool
+	isGuiMode       bool
 	isPatchMode     bool
 	isMraMode       bool
+	isSwapMode      bool
 	romSetName      string
 	binFilepath     string
 	outputFilepath  string
@@ -58,6 +62,8 @@ func parseFlags() {
 	decryptMode := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptMode := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
 	diffMode := flag.Bool("m", false, Resources.Strings.Flag["diffModeDesc"])
+	guiMode := flag.Bool("g", false, Resources.Strings.Flag["guiModeDesc"])
+	swapMode := flag.Bool("w", false, Resources.Strings.Flag["swapModeDesc"])
 	romName := flag.String("n", "", Resources.Strings.Flag["romSetNameDesc"])
 	outputFile := flag.String("o", "", Resources.Strings.Flag["outputFileDesc"])
 	patchMode := flag.Bool("p", false, Resources.Strings.Flag["patchModeDesc"])
@@ -66,17 +72,20 @@ func parseFlags() {
 	zipFile := flag.String("z", "", Resources.Strings.Flag["zipFileDesc"])
 
 	flag.Parse()
-	flags = Flags{*concatMode, *decryptMode, *encryptMode, *patchMode, *diffMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
+	flags = Flags{*concatMode, *decryptMode, *encryptMode, *guiMode, *patchMode, *diffMode, *swapMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
 	validateFlags()
 }
 
 func validateFlags() {
+	if flags.isGuiMode {
+		return
+	}
 	zipFileRequired := flags.isDecryptMode || flags.isEncryptMode || flags.isMraMode || flags.isPatchMode || flags.isConcatMode
 	if zipFileRequired && flags.zipFilepath == "" {
 		flag.Usage()
 		throw(Resources.Strings.Error["noRomFile"])
 	}
-	binFileRequired := flags.isEncryptMode
+	binFileRequired := flags.isEncryptMode || flags.isSwapMode
 	if binFileRequired && flags.binFilepath == "" {
 		flag.Usage()
 		throw(Resources.Strings.Error["noBinFile"])
@@ -95,7 +104,6 @@ func validateFlags() {
 	if mraFileRequired && flags.mraFilepath == "" {
 		flag.Usage()
 		throw(Resources.Strings.Error["noMraFile"])
-
 	}
 }
 
@@ -107,6 +115,20 @@ func throw(errorString string) {
 func check(err error) {
 	if err != nil {
 		throw(err.Error())
+	}
+}
+
+func gui() {
+	command := tui.StartTui()
+	switch *command.Name {
+	case "Decrypt":
+		decrypt(command.RomSetName, command.ZipFilepath)
+	case "Encrypt":
+		encrypt(command.RomSetName, command.ZipFilepath, command.BinFilepath)
+	case "Patch":
+		patch(command.RomSetName, command.ZipFilepath, command.MraFilepath)
+	case "Diff":
+		diff(command.RomSetName, command.ZipFilepath, command.DiffZipFilepath)
 	}
 }
 
@@ -125,7 +147,25 @@ func concat() {
 	f.Close()
 }
 
-func decrypt() {
+// func decodeGfx() {
+// 	if flags.outputFilepath == "" || flags.outputFilepath == flags.romSetName+".bin" {
+// 		flags.outputFilepath = flags.romSetName + "_gfx.bin"
+// 	}
+// 	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
+// 	check(err)
+// 	defer romZipFile.Close()
+// 	gfxBinary, err := cps2rom.ProcessRegionFromZip(romZipFile, romDef.Gfx)
+// 	check(err)
+// 	err = file_utils.WriteBytesToFile(flags.outputFilepath, gfxBinary)
+// 	check(err)
+// 	Resources.Logger.Done(fmt.Sprintf("Decoded graphics written to %s!", flags.outputFilepath))
+// }
+
+func decrypt(args ...*string) {
+	if len(args) > 0 {
+		flags.romSetName = *args[0]
+		flags.zipFilepath = *args[1]
+	}
 	if flags.outputFilepath == "" {
 		flags.outputFilepath = flags.romSetName + ".bin"
 	}
@@ -141,7 +181,12 @@ func decrypt() {
 	Resources.Logger.Done(fmt.Sprintf("Decrypted ROM written to %s!", flags.outputFilepath))
 }
 
-func encrypt() {
+func encrypt(args ...*string) {
+	if len(args) > 0 {
+		flags.romSetName = *args[0]
+		flags.zipFilepath = *args[1]
+		flags.binFilepath = *args[2]
+	}
 	if flags.outputFilepath == "" {
 		flags.outputFilepath = flags.romSetName + ".zip"
 	}
@@ -164,7 +209,12 @@ func encrypt() {
 	Resources.Logger.Done(fmt.Sprintf("Encrypted ROM written to %s!", flags.outputFilepath))
 }
 
-func patch() {
+func patch(args ...*string) {
+	if len(args) > 0 {
+		flags.romSetName = *args[0]
+		flags.zipFilepath = *args[1]
+		flags.mraFilepath = *args[2]
+	}
 	if flags.outputFilepath == "" {
 		flags.outputFilepath = flags.romSetName + ".zip"
 	}
@@ -199,13 +249,19 @@ func patch() {
 	for file, content := range fileContentMap {
 		x, err := w.Create(file)
 		check(err)
-		x.Write(content)
+		_, err = x.Write(content)
+		check(err)
 	}
 	w.Close()
 	Resources.Logger.Done(fmt.Sprintf("Patched ROM written to %s!", flags.outputFilepath))
 }
 
-func diff() {
+func diff(args ...*string) {
+	if len(args) > 0 {
+		flags.romSetName = *args[0]
+		flags.zipFilepath = *args[1]
+		flags.diffZipFilepath = *args[2]
+	}
 	if flags.outputFilepath == "" {
 		flags.outputFilepath = flags.romSetName + ".mra"
 	}
@@ -244,11 +300,24 @@ func diff() {
 	Resources.Logger.Done(fmt.Sprintf("Patches written to %s!", flags.outputFilepath))
 }
 
+func swap() {
+	if flags.outputFilepath == "" {
+		flags.outputFilepath = filepath.Join(filepath.Dir(flags.binFilepath), filepath.Base(flags.binFilepath)+"_swap")
+	}
+	swappedBinBytes, err := file_utils.SwapFileBytes(flags.binFilepath)
+	check(err)
+	err = file_utils.WriteBytesToFile(flags.outputFilepath, swappedBinBytes)
+	check(err)
+	Resources.Logger.Done(fmt.Sprintf("Swapped bytes written to %s!", flags.outputFilepath))
+}
+
 func main() {
 	err := cps2rom.ParseRoms()
 	check(err)
 	parseFlags()
-	if flags.isDecryptMode {
+	if flags.isGuiMode {
+		gui()
+	} else if flags.isDecryptMode {
 		decrypt()
 	} else if flags.isEncryptMode {
 		encrypt()
@@ -258,6 +327,8 @@ func main() {
 		diff()
 	} else if flags.isConcatMode {
 		concat()
+	} else if flags.isSwapMode {
+		swap()
 	}
 	os.Exit(0)
 }

@@ -31,7 +31,9 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
 
 ## Usage
 
-You can find an example workflow/usage [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
+You can opt to use the TUI mode with an interactive terminal by specifying the `-g` flag. This is the most user friendly option, but if you wish to script your workflow, flags are provided below.
+
+You can find an example workflow/usage for non-TUI mode [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
 
 ```
   -b string

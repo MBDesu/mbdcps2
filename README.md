@@ -33,6 +33,8 @@ Navigate to [Releases](https://github.com/MBDesu/mbdcps2/releases) and find the 
 
 You can opt to use the TUI mode with an interactive terminal by specifying the `-g` flag. This is the most user friendly option, but if you wish to script your workflow, flags are provided below.
 
+[![TUI mode](https://github.com/MBDesu/mbdcps2/main/thumb.png)](https://github.com/MBDesu/mbdcps2/main/TUI.mov)
+
 You can find an example workflow/usage for non-TUI mode [here](https://gist.github.com/MBDesu/c332f919a653044f7ba2f20316e88f07).
 
 ```

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MBDesu/mbdcps2/Resources"
+	"github.com/MBDesu/mbdcps2/resources"
 )
 
 type RomPatch struct {

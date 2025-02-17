@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/MBDesu/mbdcps2/Resources"
+	"github.com/MBDesu/mbdcps2/resources"
 	file_utils "github.com/MBDesu/mbdcps2/utils"
 )
 

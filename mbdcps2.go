@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/MBDesu/mbdcps2/Resources"
+	"github.com/MBDesu/mbdcps2/resources"
 	"github.com/MBDesu/mbdcps2/cps2crypt"
 	"github.com/MBDesu/mbdcps2/cps2rom"
 	"github.com/MBDesu/mbdcps2/tui"

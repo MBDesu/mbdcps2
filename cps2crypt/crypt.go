@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/MBDesu/mbdcps2/Resources"
+	"github.com/MBDesu/mbdcps2/resources"
 	"github.com/MBDesu/mbdcps2/cps2rom"
 )
 

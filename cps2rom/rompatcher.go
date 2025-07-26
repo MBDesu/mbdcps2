@@ -8,13 +8,35 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MBDesu/mbdcps2/resources"
+	"github.com/MBDesu/mbdcps2/Resources"
+	utils "github.com/MBDesu/mbdcps2/utils"
 )
 
 type RomPatch struct {
+	Filename     string
+	RegionOffset int
+	FileOffset   int
+	Data         []uint8
+}
+
+type IpsPatchFile struct {
+	// header: 0x50 0x41 0x54 0x43 0x48 (PATCH)
 	Filename string
-	Offset   int
-	Data     []uint8
+	Records  []IpsRecord
+	// footer: 0x45 0x4f 0x46 (EOF)
+}
+
+type IpsRecord struct {
+	Offset int // 24 bits
+	Size   uint16
+	Data   []byte
+}
+
+func newIpsPatchFile(filename string) *IpsPatchFile {
+	return &IpsPatchFile{
+		Filename: filename,
+		Records:  make([]IpsRecord, 0, 1024),
+	}
 }
 
 type MraXml struct {
@@ -82,32 +104,20 @@ type MraXml struct {
 	} `xml:"buttons"`
 }
 
-func createUint8ArrayFromUint16Array(arr []uint16) []uint8 {
-	newArr := make([]uint8, len(arr)*2)
-	for i := 0; i < len(arr); i++ {
-		val := uint8((arr[i] & 0xff00) >> 8)
-		newArr[i*2] = val
-		val = uint8(arr[i] & 0xff)
-		newArr[i*2+1] = val
+func mapOffsetToFile(baseOffset int64, offset int64, romRegion RomRegion) (string, int) {
+	for _, operation := range romRegion.Operations {
+		actualOffset := offset - baseOffset
+		if actualOffset >= int64(operation.Offset) && actualOffset < int64(operation.Offset+operation.Length) {
+			return operation.Filename, int(actualOffset - int64(operation.Offset))
+		}
 	}
-
-	return newArr
+	return "", -1
 }
 
 func ParseMra(mraFile []byte) (*MraXml, error) {
 	var mraXml MraXml
 	err := xml.Unmarshal(mraFile, &mraXml)
 	return &mraXml, err
-}
-
-func mapOffsetToFile(baseOffset int64, offset int64, romRegion RomRegion) (string, int) {
-	for _, operation := range romRegion.Operations {
-		actualOffset := offset - 0x40 - baseOffset
-		if actualOffset >= int64(operation.Offset) && actualOffset < int64(operation.Offset+operation.Length) {
-			return operation.Filename, int(actualOffset - int64(operation.Offset))
-		}
-	}
-	return "", -1
 }
 
 func PatchRomRegionWithMra(romZip *zip.ReadCloser, mra MraXml, romRegion RomRegion, fileContentMap map[string][]byte, baseOffset int, outputFilepath string) error {
@@ -129,7 +139,7 @@ func PatchRomRegionWithMra(romZip *zip.ReadCloser, mra MraXml, romRegion RomRegi
 				data = append(data, byte8)
 			}
 			if len(data) > 0 {
-				operationFilename, absoluteOffset := mapOffsetToFile(int64(baseOffset), offset, romRegion)
+				operationFilename, absoluteOffset := mapOffsetToFile(int64(baseOffset), offset-0x40, romRegion)
 				if operationFilename == "" || absoluteOffset == -1 {
 					continue
 				} else if operationFilename != lastOperationFilename {
@@ -143,21 +153,6 @@ func PatchRomRegionWithMra(romZip *zip.ReadCloser, mra MraXml, romRegion RomRegi
 		}
 	}
 	return nil
-}
-
-func createUint16ArrayFromUint8Array(arr []uint8) []uint16 {
-	length := len(arr)
-	newArr := make([]uint16, length/2)
-	i := 0
-	j := 0
-	for i < length {
-		val := uint16(arr[i+1])
-		val |= uint16(arr[i]) << 8
-		newArr[j] = val
-		i += 2
-		j++
-	}
-	return newArr
 }
 
 func DiffRomRegion(baseOffset int, region RomRegion, first *zip.ReadCloser, second *zip.ReadCloser) (*[]RomPatch, error) {
@@ -180,8 +175,8 @@ func DiffRomRegion(baseOffset int, region RomRegion, first *zip.ReadCloser, seco
 			if err != nil {
 				return nil, err
 			}
-			l16 := createUint16ArrayFromUint8Array(lb)
-			r16 := createUint16ArrayFromUint8Array(rb)
+			l16 := utils.CreateUint16ArrayFromUint8Array(lb)
+			r16 := utils.CreateUint16ArrayFromUint8Array(rb)
 			bytesChanged := 0
 			for i := 0; i < operation.Length/2; i++ {
 				data := make([]uint16, 0, 0x1000)
@@ -189,8 +184,10 @@ func DiffRomRegion(baseOffset int, region RomRegion, first *zip.ReadCloser, seco
 					data = append(data, r16[i])
 				}
 				if len(data) > 0 {
-					data8 := createUint8ArrayFromUint16Array(data)
-					romPatches = append(romPatches, RomPatch{operation.Filename, (baseOffset + operation.Offset + (i * 2)) - len(data8), data8})
+					data8 := utils.CreateUint8ArrayFromUint16Array(data)
+					fileOffset := (i * 2) - len(data8)
+					regionOffset := baseOffset + operation.Offset + fileOffset
+					romPatches = append(romPatches, RomPatch{operation.Filename, regionOffset, fileOffset, data8})
 					bytesChanged += len(data8)
 				}
 			}
@@ -206,15 +203,52 @@ func DiffRomRegion(baseOffset int, region RomRegion, first *zip.ReadCloser, seco
 	return &romPatches, nil
 }
 
-func GenerateMraPatches(patches *[]RomPatch) []string {
-	patchStrings := make([]string, len(*patches), len(*patches)+10)
+func convertIpsPatchFileToBinary(ipsPatchData []IpsPatchFile) (ipsPatches map[string][]byte) {
+	ipsPatches = map[string][]byte{}
+	for _, patchData := range ipsPatchData {
+		recordsBinary := []byte{0x50, 0x41, 0x54, 0x43, 0x48}
+		for _, patchRecord := range patchData.Records {
+			recordsBinary = append(recordsBinary, utils.ConvertUintToByteSlice(uint32(patchRecord.Offset), 3)...)
+			recordsBinary = append(recordsBinary, utils.ConvertUintToByteSlice(uint32(patchRecord.Size), 2)...)
+			for _, patchByte := range patchRecord.Data {
+				recordsBinary = append(recordsBinary, patchByte)
+			}
+		}
+		recordsBinary = append(recordsBinary, 0x45, 0x4f, 0x46)
+		ipsPatches[patchData.Filename] = recordsBinary
+	}
+	return
+}
+
+func GenerateIpsPatches(patches *[]RomPatch) (ipsPatchFiles map[string][]byte) {
+	ipsPatchData := make([]IpsPatchFile, 0, 20)
+	filePatchMap := map[string][]RomPatch{}
+	for _, patch := range *patches {
+		filePatchMap[patch.Filename] = append(filePatchMap[patch.Filename], patch)
+	}
+	for patchFilename, patches := range filePatchMap {
+		newPatchFile := newIpsPatchFile(patchFilename)
+		for _, patch := range patches {
+			newPatchFile.Records = append(newPatchFile.Records, IpsRecord{
+				Offset: patch.FileOffset,
+				Size:   uint16(len(patch.Data) & 0xffff),
+				Data:   patch.Data,
+			})
+		}
+		ipsPatchData = append(ipsPatchData, *newPatchFile)
+	}
+	return convertIpsPatchFileToBinary(ipsPatchData)
+}
+
+func GenerateMraPatches(patches *[]RomPatch) (patchStrings []string) {
+	patchStrings = make([]string, len(*patches), len(*patches)+10)
 	var currentFile = ""
 	for _, patch := range *patches {
 		if currentFile != patch.Filename {
 			currentFile = patch.Filename
 			patchStrings = append(patchStrings, fmt.Sprintf("<!-- %s -->\n", currentFile))
 		}
-		patchString := fmt.Sprintf("<patch offset=\"0x%08x\">", patch.Offset+0x40)
+		patchString := fmt.Sprintf("<patch offset=\"0x%08x\">", patch.RegionOffset+0x40)
 		for i, b := range patch.Data {
 			if i == len(patch.Data)-1 {
 				patchString += fmt.Sprintf("%02x</patch>\n", b)
@@ -224,5 +258,5 @@ func GenerateMraPatches(patches *[]RomPatch) []string {
 		}
 		patchStrings = append(patchStrings, patchString)
 	}
-	return patchStrings
+	return
 }

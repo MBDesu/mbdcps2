@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/MBDesu/mbdcps2/resources"
+	"github.com/MBDesu/mbdcps2/Resources"
 	"github.com/MBDesu/mbdcps2/cps2crypt"
 	"github.com/MBDesu/mbdcps2/cps2rom"
 	"github.com/MBDesu/mbdcps2/tui"
@@ -28,7 +28,7 @@ import (
 // | Encrypt          |  e   |    2     |     .bin+.zip     |        .zip        |   Required   |
 // | Generate .mra    |  m   |    4     |       .zip        |        .mra        |   Required   |
 // | Patch            |  p   |    3     |       .zip        |        .zip        |   Required   |
-// | Decode gfx       |  g   |    6     |       .zip        |        .bin        |   Required   |
+// | Decode gfx       |  g   |    6     |       .zip        |        .bmp        |   Required   |
 //
 // | Argument        | Flag |   Required With     |
 // | :-------------- | :--: | :-----------------: |
@@ -42,6 +42,7 @@ type Flags struct {
 	isConcatMode    bool
 	isDecryptMode   bool
 	isEncryptMode   bool
+	isGfxMode       bool
 	isGuiMode       bool
 	isPatchMode     bool
 	isMraMode       bool
@@ -61,6 +62,7 @@ func parseFlags() {
 	concatMode := flag.Bool("c", false, Resources.Strings.Flag["concatModeDesc"])
 	decryptMode := flag.Bool("d", false, Resources.Strings.Flag["decryptModeDesc"])
 	encryptMode := flag.Bool("e", false, Resources.Strings.Flag["encryptModeDesc"])
+	gfxMode := flag.Bool("f", false, "TODO")
 	diffMode := flag.Bool("m", false, Resources.Strings.Flag["diffModeDesc"])
 	guiMode := flag.Bool("g", false, Resources.Strings.Flag["guiModeDesc"])
 	swapMode := flag.Bool("w", false, Resources.Strings.Flag["swapModeDesc"])
@@ -72,7 +74,7 @@ func parseFlags() {
 	zipFile := flag.String("z", "", Resources.Strings.Flag["zipFileDesc"])
 
 	flag.Parse()
-	flags = Flags{*concatMode, *decryptMode, *encryptMode, *guiMode, *patchMode, *diffMode, *swapMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
+	flags = Flags{*concatMode, *decryptMode, *encryptMode, *gfxMode, *guiMode, *patchMode, *diffMode, *swapMode, *romName, *binFile, *outputFile, *zipFile, *diffZipFile, *mraFile}
 	validateFlags()
 }
 
@@ -147,19 +149,27 @@ func concat() {
 	f.Close()
 }
 
-// func decodeGfx() {
-// 	if flags.outputFilepath == "" || flags.outputFilepath == flags.romSetName+".bin" {
-// 		flags.outputFilepath = flags.romSetName + "_gfx.bin"
-// 	}
-// 	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
-// 	check(err)
-// 	defer romZipFile.Close()
-// 	gfxBinary, err := cps2rom.ProcessRegionFromZip(romZipFile, romDef.Gfx)
-// 	check(err)
-// 	err = file_utils.WriteBytesToFile(flags.outputFilepath, gfxBinary)
-// 	check(err)
-// 	Resources.Logger.Done(fmt.Sprintf("Decoded graphics written to %s!", flags.outputFilepath))
-// }
+// TODO: user supplied palettes
+func decodeGfx() {
+	if flags.outputFilepath == "" || flags.outputFilepath == flags.romSetName+".bin" {
+		flags.outputFilepath = flags.romSetName + "_gfx.bin"
+	}
+	romZipFile, romDef, err := cps2rom.ParseRomZip(flags.zipFilepath, flags.romSetName)
+	check(err)
+	defer romZipFile.Close()
+	interleavedGfx, err := cps2rom.InterleaveGraphics(romDef.Gfx, romZipFile)
+	check(err)
+	bmp_16, err := cps2rom.InterleavedGfxToBitmap(interleavedGfx, 16)
+	check(err)
+	bmp_32, err := cps2rom.InterleavedGfxToBitmap(interleavedGfx, 32)
+	check(err)
+	err = file_utils.WriteBytesToFile(flags.romSetName+"_16x16.bmp", bmp_16.Data())
+	check(err)
+	Resources.Logger.Done(fmt.Sprintf("16x16 tile bitmap written to %s!", flags.romSetName+"_16x16.bmp"))
+	err = file_utils.WriteBytesToFile(flags.romSetName+"_32x32.bmp", bmp_32.Data())
+	check(err)
+	Resources.Logger.Done(fmt.Sprintf("32x32 tile bitmap written to %s!", flags.romSetName+"_32x32.bmp"))
+}
 
 func decrypt(args ...*string) {
 	if len(args) > 0 {
@@ -282,22 +292,31 @@ func diff(args ...*string) {
 		check(err)
 		patches = append(patches, *regionPatches...)
 		if region.regionName == "audiocpu" {
-			baseOffset += 0x40000
+			baseOffset += 0x40000 // mra files for jtcps2 place this region here idk
 		} else {
 			baseOffset += region.region.Size
 		}
 	}
+	Resources.Logger.Warn("Generating mra patches...")
 	patchStrings := cps2rom.GenerateMraPatches(&patches)
-	patchFile, err := file_utils.CreateFile(flags.outputFilepath)
-	check(err)
-	_, err = patchFile.WriteString(Resources.Strings.Info["mraHeader"])
-	check(err)
-	for _, patch := range patchStrings {
-		_, err = patchFile.WriteString(patch)
+	if len(patchStrings) > 0 {
+		patchFile, err := file_utils.CreateFile(flags.outputFilepath)
 		check(err)
+		_, err = patchFile.WriteString(Resources.Strings.Info["mraHeader"])
+		check(err)
+		for _, patch := range patchStrings {
+			_, err = patchFile.WriteString(patch)
+			check(err)
+		}
+		defer patchFile.Close()
+		Resources.Logger.Done(fmt.Sprintf("mra patches written to %s!", flags.outputFilepath))
+		Resources.Logger.Warn("Generating ips patches...")
+		for ipsFilename, ipsPatchData := range cps2rom.GenerateIpsPatches(&patches) {
+			err = file_utils.WriteBytesToFile(ipsFilename+".ips", ipsPatchData)
+			check(err)
+		}
+		Resources.Logger.Done("ips patches written!")
 	}
-	defer patchFile.Close()
-	Resources.Logger.Done(fmt.Sprintf("Patches written to %s!", flags.outputFilepath))
 }
 
 func swap() {
@@ -329,6 +348,8 @@ func main() {
 		concat()
 	} else if flags.isSwapMode {
 		swap()
+	} else if flags.isGfxMode {
+		decodeGfx()
 	}
 	os.Exit(0)
 }

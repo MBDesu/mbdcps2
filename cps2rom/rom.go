@@ -8,12 +8,57 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/MBDesu/mbdcps2/resources"
-	file_utils "github.com/MBDesu/mbdcps2/utils"
+	"github.com/MBDesu/mbdcps2/Resources"
+	utils "github.com/MBDesu/mbdcps2/utils"
 )
 
+func InterleaveGraphics(gfxRegion RomRegion, romZip *zip.ReadCloser) (interleavedGfxBin []byte, err error) {
+	interleavedGfxBin = make([]byte, gfxRegion.Size)
+	var gfxBinPtr int = 0
+	for _, operation := range gfxRegion.Operations {
+		for _, file := range romZip.File {
+			if file.Name == operation.Filename {
+				gfxBinPtr = operation.Offset
+				fileHandle, err := file.Open()
+				if err != nil {
+					return nil, err
+				}
+				fileContents, err := io.ReadAll(fileHandle)
+				if err != nil {
+					return nil, err
+				}
+				Resources.Logger.Done(fmt.Sprintf("Interleaving %s:", operation.Filename))
+				Resources.Logger.Info(fmt.Sprintf("  Offset:     0x%06x", gfxBinPtr))
+				Resources.Logger.Info(fmt.Sprintf("  Group size: %d", operation.GroupSize))
+				Resources.Logger.Info(fmt.Sprintf("  Skip:       %d", operation.Skip))
+				bytesLeft := operation.Length
+				offset := 0
+				for bytesLeft != 0 {
+					for i := 0; i < operation.GroupSize; i++ {
+						interleavedGfxBin[gfxBinPtr+i] = fileContents[offset]
+						bytesLeft--
+						offset++
+					}
+					gfxBinPtr += operation.GroupSize + operation.Skip
+				}
+			}
+		}
+	}
+	return
+}
+
+// TODO: encode from .bmp
+func InterleavedGfxToBitmap(interleavedGraphics []byte, tileSize int) (bmp *utils.Bitmap, err error) {
+	bmp = utils.NewBitmap()
+	bmp.Header.Height = uint32(0x00400000)
+	bmp.Header.Width = uint32(0x00100000)
+	bmp.PixelData = utils.GfxToBitmapPixelData(interleavedGraphics, tileSize)
+	bmp.Header.FileSize = uint32(len(interleavedGraphics) + len(bmp.Data()))
+	return
+}
+
 func SplitRegionToFiles(romRegion RomRegion, binary []byte, zipPath string) error {
-	f, err := file_utils.CreateFile(zipPath)
+	f, err := utils.CreateFile(zipPath)
 	if err != nil {
 		return err
 	}
@@ -140,9 +185,7 @@ func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, er
 				}
 			} else if !operation.Reverse {
 				for j := 0; j < operation.Length && bytesLeft > 0; j++ {
-					// fmt.Printf("bufPtr = %06x\n", bufPtr)
 					for k := 0; k < operation.GroupSize && bytesLeft > 0; k++ {
-						// fmt.Printf("%06x\n", k+bufPtr)
 						regionBinary[k+bufPtr] = p[j+k]
 						bytesLeft--
 					}
@@ -166,7 +209,7 @@ func ProcessRegionFromZip(romZip *zip.ReadCloser, region RomRegion) ([]uint8, er
 
 func ParseRomZip(file_path string, romSetName string) (*zip.ReadCloser, *RomDefinition, error) {
 	Resources.Logger.Warn(fmt.Sprintf("Parsing %s...", filepath.Clean(file_path)))
-	romZipFile, err := file_utils.GetZipFileReader(file_path)
+	romZipFile, err := utils.GetZipFileReader(file_path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -203,7 +246,7 @@ func copyZippedFileToNewZip(file *zip.File, newZip *zip.Writer) error {
 }
 
 func WriteModifiedRegionToZip(outputFilepath string, romZip *zip.ReadCloser, modifiedRegionZip *zip.ReadCloser, region RomRegion) error {
-	f, err := file_utils.CreateFile(outputFilepath)
+	f, err := utils.CreateFile(outputFilepath)
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ type Palette_Color struct {
 }
 
 func (p *Palette_Color) GetColorBytes() (color []byte) {
-	color = []byte{p.R, p.G, p.B, 0x0}
+	color = []byte{p.B, p.G, p.R, 0x0}
 	return
 }
 
@@ -108,6 +108,7 @@ func NewBitmap() *Bitmap {
 		NewBmpHeader(),
 		NewPalette(
 			[]Palette_Color{
+				// Default
 				*NewPaletteColor([3]byte{0x00, 0x00, 0x00}),
 				*NewPaletteColor([3]byte{0x12, 0x19, 0x25}),
 				*NewPaletteColor([3]byte{0x78, 0xf0, 0x3b}),
@@ -124,6 +125,42 @@ func NewBitmap() *Bitmap {
 				*NewPaletteColor([3]byte{0xff, 0x80, 0xff}),
 				*NewPaletteColor([3]byte{0xff, 0xff, 0x00}),
 				*NewPaletteColor([3]byte{0xff, 0xff, 0xff}),
+
+				// DE LP
+				// *NewPaletteColor([3]byte{0x44, 0x44, 0x33}),
+				// *NewPaletteColor([3]byte{0xff, 0xee, 0xaa}),
+				// *NewPaletteColor([3]byte{0xff, 0xbb, 0x99}),
+				// *NewPaletteColor([3]byte{0xee, 0x99, 0x77}),
+				// *NewPaletteColor([3]byte{0xcc, 0x88, 0x66}),
+				// *NewPaletteColor([3]byte{0xff, 0xdd, 0x00}),
+				// *NewPaletteColor([3]byte{0xff, 0x00, 0x00}),
+				// *NewPaletteColor([3]byte{0x99, 0x55, 0x11}),
+				// *NewPaletteColor([3]byte{0x55, 0x00, 0x00}),
+				// *NewPaletteColor([3]byte{0x33, 0x44, 0x55}),
+				// *NewPaletteColor([3]byte{0x44, 0x66, 0x77}),
+				// *NewPaletteColor([3]byte{0x66, 0x88, 0x99}),
+				// *NewPaletteColor([3]byte{0x88, 0xaa, 0xbb}),
+				// *NewPaletteColor([3]byte{0xbb, 0xcc, 0xdd}),
+				// *NewPaletteColor([3]byte{0xff, 0xff, 0xff}),
+				// *NewPaletteColor([3]byte{0x00, 0x00, 0x00}),
+
+				// GA LP
+				// *NewPaletteColor([3]byte{0x11, 0x11, 0x11}),
+				// *NewPaletteColor([3]byte{0x44, 0x33, 0x55}),
+				// *NewPaletteColor([3]byte{0x55, 0x55, 0x77}),
+				// *NewPaletteColor([3]byte{0x55, 0x77, 0x99}),
+				// *NewPaletteColor([3]byte{0x77, 0x88, 0xbb}),
+				// *NewPaletteColor([3]byte{0x99, 0xaa, 0xcc}),
+				// *NewPaletteColor([3]byte{0xdd, 0xcc, 0xee}),
+				// *NewPaletteColor([3]byte{0xff, 0xee, 0xff}),
+				// *NewPaletteColor([3]byte{0x88, 0x33, 0xdd}),
+				// *NewPaletteColor([3]byte{0x66, 0x33, 0x99}),
+				// *NewPaletteColor([3]byte{0x22, 0x22, 0x77}),
+				// *NewPaletteColor([3]byte{0x99, 0x66, 0x00}),
+				// *NewPaletteColor([3]byte{0xee, 0xaa, 0x00}),
+				// *NewPaletteColor([3]byte{0xff, 0xff, 0x88}),
+				// *NewPaletteColor([3]byte{0xff, 0x99, 0x99}),
+				// *NewPaletteColor([3]byte{0x00, 0x00, 0x00}),
 			},
 		),
 		[]byte{},

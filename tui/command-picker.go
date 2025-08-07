@@ -64,6 +64,7 @@ func InitializeCommandPicker() CommandPickerModel {
 		item{"Encrypt"},
 		item{"Patch"},
 		item{"Diff"},
+		item{"Extract Tiles"},
 	}
 	l := list.New(commands, ItemDelegate{}, defaultWidth, listHeight)
 	l.Title = "What would you like to do?"

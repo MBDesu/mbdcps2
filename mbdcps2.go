@@ -131,6 +131,8 @@ func gui() {
 		patch(command.RomSetName, command.ZipFilepath, command.MraFilepath)
 	case "Diff":
 		diff(command.RomSetName, command.ZipFilepath, command.DiffZipFilepath)
+	case "Extract Tiles":
+		decodeGfx(command.RomSetName, command.ZipFilepath)
 	}
 }
 
@@ -149,8 +151,12 @@ func concat() {
 	f.Close()
 }
 
-// TODO: user supplied palettes
-func decodeGfx() {
+// TODO: user supplied palettes?
+func decodeGfx(args ...*string) {
+	if len(args) > 0 {
+		flags.romSetName = *args[0]
+		flags.zipFilepath = *args[1]
+	}
 	if flags.outputFilepath == "" || flags.outputFilepath == flags.romSetName+".bin" {
 		flags.outputFilepath = flags.romSetName + "_gfx.bin"
 	}

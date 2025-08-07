@@ -36,6 +36,10 @@ func processCommand(command string) Command {
 		romZipFilepath := Filepicker{}.New("Choose the first ROM .zip to compare:", []string{".zip"})
 		diffZipFilepath := Filepicker{}.New("Choose the second ROM.zip to compare:", []string{".zip"})
 		return Command{&command, &romName, &romZipFilepath, nil, nil, &diffZipFilepath}
+	case "Extract Tiles":
+		romName := RomPicker{}.New()
+		romZipFilepath := Filepicker{}.New("Choose the ROM .zip to rip the tiles from:", []string{".zip"})
+		return Command{&command, &romName, &romZipFilepath, nil, nil, nil}
 	}
 	return Command{}
 }
